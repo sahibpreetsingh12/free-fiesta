@@ -1,0 +1,98 @@
+# ============================
+# Python Bytecode & Caches
+# ============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ============================
+# Virtual Environments
+# ============================
+# Local virtual env directories
+venv/
+env/
+.venv/
+.virtualenv/
+python-env/
+env.bak/
+venv.bak/
+
+# Poetry / pipenv / conda
+poetry.lock
+Pipfile.lock
+.conda/
+conda-meta/
+
+# ============================
+# Ray temporary & log files
+# ============================
+ray_results/
+ray_temp/
+*.ray
+*.out
+*.err
+
+# ============================
+# Docker
+# ============================
+docker-compose.override.yml
+docker-data/
+.docker/
+*.tar
+
+# Docker volumes
+volumes/
+ollama_data/
+root/.ollama/
+
+# ============================
+# UI / NGINX / JS (future React)
+# ============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.bun/
+
+dist/
+build/
+.cache/
+.eslintcache
+
+# ============================
+# Secrets / Environment Files
+# ============================
+.env
+.env.*
+*.env
+
+# ============================
+# OS Junk Files
+# ============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================
+# Editor / IDE
+# ============================
+.vscode/
+.idea/
+*.iml
+*.iws
+*.swp
+*.swo
+
+# ============================
+# Logs & Backups
+# ============================
+logs/
+*.log
+*.bak
+*.tmp
+*.temp
+*~
+
