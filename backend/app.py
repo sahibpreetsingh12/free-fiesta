@@ -22,3 +22,8 @@ def trigger_task():
     response = requests.get("http://worker:9000/run")
     return {"worker_response": response.json()}
 
+
+@app.post("/compare")
+def compare(data: dict):
+    res = requests.post("http://worker:9000/compare", json=data)
+    return res.json()

@@ -1,19 +1,58 @@
 <!DOCTYPE html>
 <html>
-<body>
-  <h1>Free-Fiesta UI</h1>
-  <button onclick="trigger()">Run Task</button>
-  <pre id="output"></pre>
+  <body>
+    <h1>Free Fiesta — Model Comparison</h1>
 
-  <script>
-    function trigger() {
-      fetch("http://localhost:8000/trigger-task")
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+    <textarea id="prompt" rows="5" cols="60" placeholder="Enter your prompt..."></textarea>
+    <br><br>
+    <button onclick="send()">Compare Models</button>
+
+    <h2>Results:</h2>
+
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    ">
+      <div style="border:1px solid #ccc; padding:10px; border-radius:6px;">
+        <h3>Qwen 2.5 (0.5B)</h3>
+        <pre id="qwen25" style="white-space:pre-wrap;"></pre>
+      </div>
+
+      <div style="border:1px solid #ccc; padding:10px; border-radius:6px;">
+        <h3>Qwen 3 (0.6B)</h3>
+        <pre id="qwen3" style="white-space:pre-wrap;"></pre>
+      </div>
+
+      <div style="border:1px solid #ccc; padding:10px; border-radius:6px;">
+        <h3>Qwen 2 (0.5B)</h3>
+        <pre id="qwen2" style="white-space:pre-wrap;"></pre>
+      </div>
+    </div>
+
+    <script>
+      function send() {
+        const prompt = document.getElementById("prompt").value;
+
+        fetch("http://localhost:8000/compare", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({prompt})
+        })
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById("qwen25").textContent =
+            "Qwen 2.5 (0.5B):\n\n" + (d["qwen2.5:0.5b"] ?? "undefined");
+
+          document.getElementById("qwen3").textContent =
+            "Qwen 3 (0.6B):\n\n" + (d["qwen3:0.6b"] ?? "undefined");
+
+          document.getElementById("qwen2").textContent =
+            "Qwen 2 (0.5B):\n\n" + (d["qwen2:0.5b"] ?? "undefined");
         });
-    }
-  </script>
-</body>
-</html>
+      }
+    </script>
 
+  </body>
+</html>
