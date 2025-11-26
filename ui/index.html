@@ -35,7 +35,7 @@
       function send() {
         const prompt = document.getElementById("prompt").value;
 
-        fetch("http://localhost:8000/compare", {
+        fetch("http://34.130.67.103:8000/compare", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({prompt})

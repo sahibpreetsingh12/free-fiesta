@@ -26,7 +26,7 @@ export default function Home() {
     setLoading(true);
 
     const start = performance.now();
-    const res = await fetch("http://localhost:8000/compare", {
+    const res = await fetch("http://34.130.67.103:8000/compare", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, temperature })
