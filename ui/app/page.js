@@ -26,7 +26,10 @@ export default function Home() {
     setLoading(true);
 
     const start = performance.now();
-    const res = await fetch("http://34.130.67.103:8000/compare", {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    // const res = await fetch("http://34.130.67.103:8000/compare", {
+    const res = await fetch(`${API_URL}/compare`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, temperature })
@@ -37,7 +40,7 @@ export default function Home() {
     setResults(data);
 
     // Compute latency per model (Ray parallel => same time)
-    const elapsed = Math.round(end - start);
+    const elapsed = ((end - start) / 1000).toFixed(2);
 
     setLatency({
       "qwen2.5:0.5b": elapsed,
