@@ -1,20 +1,30 @@
+"use client";
+import { useEffect, useRef } from "react";
+
 export default function ModelCard({ title, content, loading, latency }) {
+  const outputRef = useRef(null);
+
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    }
+  }, [content]); // runs on every token update
+
   return (
     <div className="card">
-      <h3>{title}</h3>
+      <h2>{title}</h2>
 
-      {loading ? (
-        <div className="loader"></div>
-      ) : (
-        <pre style={{ whiteSpace: "pre-wrap" }}>{content}</pre>
-      )}
+      <div className="output" ref={outputRef}>
+        {loading && content.length === 0 ? (
+          <p>Streaming...</p>
+        ) : (
+          <pre>{content}</pre>
+        )}
+      </div>
 
-      {latency !== null && (
-        <div className="latency">
-          ⏱ {latency} ms
-        </div>
+      {latency && (
+        <p className="latency">Latency: {latency}s</p>
       )}
     </div>
   );
 }
-

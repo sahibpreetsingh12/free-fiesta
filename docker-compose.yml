@@ -19,22 +19,29 @@ services:
       - "9000:9000"
     environment:
       - OLLAMA_URL=http://ollama:11434
+      - PYTHONUNBUFFERED=1
     depends_on:
       - ollama
+    command: >
+      uvicorn worker:app --host 0.0.0.0 --port 9000 --timeout-keep-alive 0
 
   api:
     container_name: free_fiesta_api
     build: ./backend
     ports:
       - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
     depends_on:
       - worker
+    command: >
+      uvicorn app:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 0
 
   ui:
     container_name: free_fiesta_ui
     build: ./ui
     ports:
-      - "3000:3000"      # IMPORTANT FIX
+      - "3000:3000"
     depends_on:
       - api
 
