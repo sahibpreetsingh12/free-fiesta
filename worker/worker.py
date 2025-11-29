@@ -1,7 +1,10 @@
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 import requests
+import json
 import ray
 import os
+from ray.util.queue import Queue   
 
 app = FastAPI()
 ray.init(ignore_reinit_error=True)
@@ -11,46 +14,69 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 models = [
     "qwen2.5:0.5b",
     "qwen3:0.6b",
-    "qwen2:0.5b"
+    "qwen2:0.5b",
 ]
 
 
 @ray.remote
-def call_model(model, prompt):
+def stream_model(model, prompt, queue):
+    """Stream tokens from Ollama and push into a Ray Queue."""
+    url = f"{OLLAMA_URL}/api/chat"
     payload = {
         "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "num_predict": 100,
+        "stream": True,
+        "messages": [{"role": "user", "content": prompt}]
     }
 
-    res = requests.post(f"{OLLAMA_URL}/api/generate", json=payload)
+    with requests.post(url, json=payload, stream=True) as r:
+        for line in r.iter_lines():
+            if not line:
+                continue
 
-    try:
-        data = res.json()
-    except Exception:
-        return {model: "Error: Invalid model output."}
+            data = json.loads(line.decode())
+            token = data.get("message", {}).get("content")
 
-    # FIX: Extract text from ANY possible Ollama key:
-    output = (
-        data.get("response")
-        or data.get("message")
-        or data.get("content")
-        or data.get("text")
-        or data.get("output")
-        or ""
-    )
+            if token:
+                queue.put({
+                    "model": model,
+                    "token": token
+                })
 
-    return {model: output}
+    # Mark stream as completed for this model
+    queue.put({
+        "model": model,
+        "token": None
+    })
 
-@app.post("/compare")
-def compare(data: dict):
+
+@app.post("/stream_compare")
+def stream_compare(data: dict):
     prompt = data["prompt"]
 
-    tasks = [call_model.remote(model, prompt) for model in models]
-    results = ray.get(tasks)
+    # One queue per model
+    queues = [Queue() for _ in models]    # ✅ FIXED
 
-    final = {}
-    for r in results:
-        final.update(r)
-    return final
+    # Start streaming workers
+    tasks = [
+        stream_model.remote(model, prompt, q)
+        for model, q in zip(models, queues)
+    ]
+
+    finished = [False] * len(models)
+
+    def generate():
+        while not all(finished):
+            for i, q in enumerate(queues):
+                if finished[i]:
+                    continue
+
+                if not q.empty():
+                    item = q.get()
+
+                    if item["token"] is None:
+                        finished[i] = True
+                        continue
+
+                    yield json.dumps(item) + "\n"
+
+    return StreamingResponse(generate(), media_type="text/plain")
