@@ -7,6 +7,7 @@ import useModelStreams from "./hooks/useModelStreams";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
+  const [temperature, setTemperature] = useState(0.7); // Initialize temperature state
   const { results, loading, startStreaming } = useModelStreams();
 
   const [fakeLatency] = useState({
@@ -25,6 +26,9 @@ export default function Home() {
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
+      
+      {/* Temperature Slider */}
+      <TemperatureSlider value={temperature} onChange={setTemperature} />
 
       {/* Streaming Button */}
       <button
