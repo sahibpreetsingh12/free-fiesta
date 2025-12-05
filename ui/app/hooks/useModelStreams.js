@@ -11,7 +11,7 @@ export default function useModelStreams() {
 
   const [loading, setLoading] = useState(false);
 
-  const startStreaming = async (prompt) => {
+  const startStreaming = async (prompt, temperature) => {
     setLoading(true);
 
     // Reset results
@@ -26,7 +26,7 @@ export default function useModelStreams() {
     const response = await fetch(`${API_URL}/stream_compare`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, temperature })
     });
 
     // Read the stream

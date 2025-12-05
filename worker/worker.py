@@ -19,13 +19,16 @@ models = [
 
 
 @ray.remote
-def stream_model(model, prompt, queue):
+def stream_model(model, prompt, temperature, queue):
     """Stream tokens from Ollama and push into a Ray Queue."""
     url = f"{OLLAMA_URL}/api/chat"
     payload = {
         "model": model,
         "stream": True,
-        "messages": [{"role": "user", "content": prompt}]
+        "messages": [{"role": "user", "content": prompt}],
+        "options": {
+            "temperature": temperature
+        }
     }
 
     with requests.post(url, json=payload, stream=True) as r:
@@ -52,13 +55,14 @@ def stream_model(model, prompt, queue):
 @app.post("/stream_compare")
 def stream_compare(data: dict):
     prompt = data["prompt"]
+    temperature = data.get("temperature", 0.7) # Default temperature if not provided
 
     # One queue per model
-    queues = [Queue() for _ in models]    # ✅ FIXED
+    queues = [Queue() for _ in models]
 
     # Start streaming workers
     tasks = [
-        stream_model.remote(model, prompt, q)
+        stream_model.remote(model, prompt, temperature, q)
         for model, q in zip(models, queues)
     ]
 

@@ -34,7 +34,7 @@ export default function Home() {
       <button
         className="button"
         disabled={loading}
-        onClick={() => startStreaming(prompt)}
+        onClick={() => startStreaming(prompt, temperature)}
       >
         {loading ? "Streaming..." : "Stream Compare Models"}
       </button>
