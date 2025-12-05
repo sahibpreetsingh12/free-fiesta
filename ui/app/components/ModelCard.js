@@ -16,7 +16,7 @@ export default function ModelCard({ title, content, loading, latency }) {
 
       <div className="output" ref={outputRef}>
         {loading && content.length === 0 ? (
-          <p>Streaming...</p>
+          <div className="loader"></div>
         ) : (
           <pre>{content}</pre>
         )}
