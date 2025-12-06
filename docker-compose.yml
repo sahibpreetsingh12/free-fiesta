@@ -15,6 +15,7 @@ services:
   worker:
     container_name: free_fiesta_worker
     build: ./worker
+    shm_size: '1gb'
     ports:
       - "9000:9000"
     environment:
