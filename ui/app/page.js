@@ -45,7 +45,8 @@ export default function Home() {
       </div>
 
       {/* 3 Horizontal Model Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
