@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import styles from "./ModelCard.module.css";
 
 export default function ModelCard({ title, content, loading, latency }) {
   const outputRef = useRef(null);
@@ -20,12 +21,12 @@ export default function ModelCard({ title, content, loading, latency }) {
   };
 
   return (
-    <div className="rounded-xl bg-neutral-800 shadow-lg flex flex-col p-4 h-96">
+    <div className={styles.card}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-3 gap-2">
-        <h2 className="font-semibold text-lg">{title}</h2>
+      <div className={styles.header}>
+        <h2 className={styles.title}>{title}</h2>
         <button
-          className="button px-3 py-1 rounded-md text-sm bg-purple-600 hover:bg-purple-700 transition whitespace-nowrap flex-shrink-0"
+          className={styles.copyButton}
           onClick={handleCopy}
         >
           {isCopied ? "Copied!" : "Copy"}
@@ -35,20 +36,18 @@ export default function ModelCard({ title, content, loading, latency }) {
       {/* Scrollable Output */}
       <div
         ref={outputRef}
-        className="flex-1 overflow-y-auto p-3 rounded-md bg-neutral-900 text-gray-200 text-sm"
+        className={styles.output}
       >
         {loading && (!content || content.length === 0) ? (
-          <div className="text-gray-400">Loading...</div>
+          <div className={styles.loading}>Loading...</div>
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-mono text-xs">{content}</pre>
+          <pre className={styles.content}>{content}</pre>
         )}
       </div>
 
       {/* Latency Display */}
       {latency && (
-        <p className="latency mt-3 text-xs text-gray-400">
-          Latency: {latency}s
-        </p>
+        <p className={styles.latency}>Latency: {latency}s</p>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import ModelCard from "./components/ModelCard";
 import TemperatureSlider from "./components/TemperatureSlider";
 import useModelStreams from "./hooks/useModelStreams";
+import styles from "./page.module.css";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -17,31 +18,26 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-black px-4 py-8">
+    <div className={styles.container}>
       {/* Title */}
-      <h1 className="text-center text-3xl font-bold mb-8">
-        Free Fiesta – Streaming Comparison
-      </h1>
+      <h1 className={styles.title}>Free Fiesta – Streaming Comparison</h1>
 
-      {/* Input Section - Centered */}
-      <div className="flex flex-col items-center gap-4 mb-8">
-        {/* Prompt Input */}
+      {/* Input Section */}
+      <div className={styles.inputSection}>
         <textarea
           rows="5"
           placeholder="Enter your prompt..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="w-full max-w-2xl p-4 rounded-lg bg-neutral-900 text-gray-200"
+          className={styles.textarea}
         />
 
-        {/* Temperature Slider */}
-        <div className="w-full max-w-2xl">
+        <div className={styles.sliderWrapper}>
           <TemperatureSlider value={temperature} onChange={setTemperature} />
         </div>
 
-        {/* Streaming Button */}
         <button
-          className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 font-semibold"
+          className={`${styles.button} ${loading ? styles.buttonDisabled : ""}`}
           disabled={loading}
           onClick={() => startStreaming(prompt, temperature)}
         >
@@ -49,8 +45,8 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Cards Grid - 3 columns */}
-      <div className="grid grid-cols-3 gap-6 px-4">
+      {/* Cards Grid - 3 Columns */}
+      <div className={styles.cardsGrid}>
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
