@@ -19,7 +19,7 @@ export default function ModelCard({ title, content, loading, latency }) {
   };
 
   return (
-    <div className="card">
+    <div className="card max-w-3xl w-full mx-auto">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>{title}</h2>
         <button className="button" onClick={handleCopy} disabled={!content}>

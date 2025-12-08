@@ -39,7 +39,8 @@ export default function Home() {
         {loading ? "Streaming..." : "Stream Compare Models"}
       </button>
 
-      <div className="grid">
+      <div className="flex flex-col items-center gap-6 mt-6">
+
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
