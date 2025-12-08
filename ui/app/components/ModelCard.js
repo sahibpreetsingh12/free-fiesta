@@ -20,33 +20,33 @@ export default function ModelCard({ title, content, loading, latency }) {
   };
 
   return (
-    <div className="card w-full h-full p-4 rounded-xl bg-neutral-800 shadow-lg flex flex-col">
+    <div className="card w-full h-96 rounded-xl bg-neutral-800 shadow-lg flex flex-col p-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-3">
         <h2 className="font-semibold text-lg">{title}</h2>
         <button
-          className="button px-3 py-1 rounded-md text-sm bg-purple-600 hover:bg-purple-700"
+          className="button px-3 py-1 rounded-md text-sm bg-purple-600 hover:bg-purple-700 transition"
           onClick={handleCopy}
         >
           {isCopied ? "Copied!" : "Copy"}
         </button>
       </div>
 
-      {/* Scrollable Output */}
+      {/* Scrollable Output - Takes remaining space */}
       <div
         ref={outputRef}
-        className="flex-1 max-h-64 overflow-auto p-3 rounded-md bg-neutral-900 text-gray-200"
+        className="flex-1 overflow-y-auto p-3 rounded-md bg-neutral-900 text-gray-200 text-sm"
       >
         {loading && (!content || content.length === 0) ? (
-          <div className="loader">Loading...</div>
+          <div className="text-gray-400">Loading...</div>
         ) : (
-          <pre className="whitespace-pre-wrap">{content}</pre>
+          <pre className="whitespace-pre-wrap break-words">{content}</pre>
         )}
       </div>
 
       {/* Latency Display */}
       {latency && (
-        <p className="latency mt-2 text-sm text-gray-400">
+        <p className="latency mt-3 text-xs text-gray-400">
           Latency: {latency}s
         </p>
       )}

@@ -48,30 +48,34 @@ export default function Home() {
         </button>
       </div>
 
-      {/* ===========================
-          3 Horizontal Model Cards
-      ============================ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 w-full max-w-7xl mx-auto">
-        <ModelCard
-          title="Qwen 2.5 (0.5B)"
-          content={results["qwen2.5:0.5b"]}
-          loading={loading}
-          latency={fakeLatency["qwen2.5:0.5b"]}
-        />
+      {/* 3 Vertical Model Cards with Fixed Width */}
+      <div className="flex justify-center gap-6 mt-6">
+        <div className="w-80">
+          <ModelCard
+            title="Qwen 2.5 (0.5B)"
+            content={results["qwen2.5:0.5b"]}
+            loading={loading}
+            latency={fakeLatency["qwen2.5:0.5b"]}
+          />
+        </div>
 
-        <ModelCard
-          title="Qwen 3 (0.6B)"
-          content={results["qwen3:0.6b"]}
-          loading={loading}
-          latency={fakeLatency["qwen3:0.6b"]}
-        />
+        <div className="w-80">
+          <ModelCard
+            title="Qwen 3 (0.6B)"
+            content={results["qwen3:0.6b"]}
+            loading={loading}
+            latency={fakeLatency["qwen3:0.6b"]}
+          />
+        </div>
 
-        <ModelCard
-          title="Qwen 2 (0.5B)"
-          content={results["qwen2:0.5b"]}
-          loading={loading}
-          latency={fakeLatency["qwen2:0.5b"]}
-        />
+        <div className="w-80">
+          <ModelCard
+            title="Qwen 2 (0.5B)"
+            content={results["qwen2:0.5b"]}
+            loading={loading}
+            latency={fakeLatency["qwen2:0.5b"]}
+          />
+        </div>
       </div>
     </div>
   );
