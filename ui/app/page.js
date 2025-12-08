@@ -18,10 +18,12 @@ export default function Home() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Title */}
       <h1 className="text-center text-3xl font-bold mb-6">
         Free Fiesta – Streaming Comparison
       </h1>
 
+      {/* Prompt Input */}
       <textarea
         rows="5"
         placeholder="Enter your prompt..."
@@ -30,10 +32,12 @@ export default function Home() {
         className="w-full max-w-3xl mx-auto block p-4 rounded-lg bg-neutral-900 text-gray-200 mb-4"
       />
 
+      {/* Temperature Slider */}
       <div className="w-full max-w-3xl mx-auto mb-4">
         <TemperatureSlider value={temperature} onChange={setTemperature} />
       </div>
 
+      {/* Streaming Button */}
       <div className="w-full max-w-3xl mx-auto mb-6">
         <button
           className="button w-full py-3 rounded-lg bg-purple-600 hover:bg-purple-700"
@@ -44,9 +48,10 @@ export default function Home() {
         </button>
       </div>
 
-      {/* 3 Horizontal Model Cards */}
-      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-
+      {/* ===========================
+          3 Horizontal Model Cards
+      ============================ */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 w-full max-w-7xl mx-auto">
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
