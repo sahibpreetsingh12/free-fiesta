@@ -7,40 +7,45 @@ import useModelStreams from "./hooks/useModelStreams";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [temperature, setTemperature] = useState(0.7); // Initialize temperature state
+  const [temperature, setTemperature] = useState(0.7);
   const { results, loading, startStreaming } = useModelStreams();
 
-  const [fakeLatency] = useState({
+  const fakeLatency = {
     "qwen2.5:0.5b": null,
     "qwen3:0.6b": null,
-    "qwen2:0.5b": null
-  });
+    "qwen2:0.5b": null,
+  };
 
   return (
-    <div className="container">
-      <h1>Free Fiesta – Streaming Comparison</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-center text-3xl font-bold mb-6">
+        Free Fiesta – Streaming Comparison
+      </h1>
 
       <textarea
         rows="5"
         placeholder="Enter your prompt..."
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        className="w-full max-w-3xl mx-auto block p-4 rounded-lg bg-neutral-900 text-gray-200 mb-4"
       />
-      
-      {/* Temperature Slider */}
-      <TemperatureSlider value={temperature} onChange={setTemperature} />
 
-      {/* Streaming Button */}
-      <button
-        className="button"
-        disabled={loading}
-        onClick={() => startStreaming(prompt, temperature)}
-      >
-        {loading ? "Streaming..." : "Stream Compare Models"}
-      </button>
+      <div className="w-full max-w-3xl mx-auto mb-4">
+        <TemperatureSlider value={temperature} onChange={setTemperature} />
+      </div>
 
-      <div className="flex flex-col items-center gap-6 mt-6">
+      <div className="w-full max-w-3xl mx-auto mb-6">
+        <button
+          className="button w-full py-3 rounded-lg bg-purple-600 hover:bg-purple-700"
+          disabled={loading}
+          onClick={() => startStreaming(prompt, temperature)}
+        >
+          {loading ? "Streaming..." : "Stream Compare Models"}
+        </button>
+      </div>
 
+      {/* 3 Horizontal Model Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
