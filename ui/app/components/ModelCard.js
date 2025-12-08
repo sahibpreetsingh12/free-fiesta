@@ -20,12 +20,12 @@ export default function ModelCard({ title, content, loading, latency }) {
   };
 
   return (
-    <div className="w-72 rounded-xl bg-neutral-800 shadow-lg flex flex-col p-4">
+    <div className="rounded-xl bg-neutral-800 shadow-lg flex flex-col p-4 h-96">
       {/* Header */}
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center mb-3 gap-2">
         <h2 className="font-semibold text-lg">{title}</h2>
         <button
-          className="button px-3 py-1 rounded-md text-sm bg-purple-600 hover:bg-purple-700 transition whitespace-nowrap"
+          className="button px-3 py-1 rounded-md text-sm bg-purple-600 hover:bg-purple-700 transition whitespace-nowrap flex-shrink-0"
           onClick={handleCopy}
         >
           {isCopied ? "Copied!" : "Copy"}
@@ -35,7 +35,7 @@ export default function ModelCard({ title, content, loading, latency }) {
       {/* Scrollable Output */}
       <div
         ref={outputRef}
-        className="flex-1 min-h-64 overflow-y-auto p-3 rounded-md bg-neutral-900 text-gray-200 text-sm"
+        className="flex-1 overflow-y-auto p-3 rounded-md bg-neutral-900 text-gray-200 text-sm"
       >
         {loading && (!content || content.length === 0) ? (
           <div className="text-gray-400">Loading...</div>

@@ -18,60 +18,59 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black px-4 py-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Title */}
-        <h1 className="text-center text-3xl font-bold mb-6">
-          Free Fiesta – Streaming Comparison
-        </h1>
+      {/* Title */}
+      <h1 className="text-center text-3xl font-bold mb-8">
+        Free Fiesta – Streaming Comparison
+      </h1>
 
+      {/* Input Section - Centered */}
+      <div className="flex flex-col items-center gap-4 mb-8">
         {/* Prompt Input */}
         <textarea
           rows="5"
           placeholder="Enter your prompt..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="w-full max-w-3xl mx-auto block p-4 rounded-lg bg-neutral-900 text-gray-200 mb-4"
+          className="w-full max-w-2xl p-4 rounded-lg bg-neutral-900 text-gray-200"
         />
 
         {/* Temperature Slider */}
-        <div className="w-full max-w-3xl mx-auto mb-4">
+        <div className="w-full max-w-2xl">
           <TemperatureSlider value={temperature} onChange={setTemperature} />
         </div>
 
         {/* Streaming Button */}
-        <div className="w-full max-w-3xl mx-auto mb-6">
-          <button
-            className="button w-full py-3 rounded-lg bg-purple-600 hover:bg-purple-700"
-            disabled={loading}
-            onClick={() => startStreaming(prompt, temperature)}
-          >
-            {loading ? "Streaming..." : "Stream Compare Models"}
-          </button>
-        </div>
+        <button
+          className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 font-semibold"
+          disabled={loading}
+          onClick={() => startStreaming(prompt, temperature)}
+        >
+          {loading ? "Streaming..." : "Stream Compare Models"}
+        </button>
+      </div>
 
-        {/* 3 Horizontal Model Cards */}
-        <div className="flex gap-6 justify-center">
-          <ModelCard
-            title="Qwen 2.5 (0.5B)"
-            content={results["qwen2.5:0.5b"]}
-            loading={loading}
-            latency={fakeLatency["qwen2.5:0.5b"]}
-          />
+      {/* Cards Grid - 3 columns */}
+      <div className="grid grid-cols-3 gap-6 px-4">
+        <ModelCard
+          title="Qwen 2.5 (0.5B)"
+          content={results["qwen2.5:0.5b"]}
+          loading={loading}
+          latency={fakeLatency["qwen2.5:0.5b"]}
+        />
 
-          <ModelCard
-            title="Qwen 3 (0.6B)"
-            content={results["qwen3:0.6b"]}
-            loading={loading}
-            latency={fakeLatency["qwen3:0.6b"]}
-          />
+        <ModelCard
+          title="Qwen 3 (0.6B)"
+          content={results["qwen3:0.6b"]}
+          loading={loading}
+          latency={fakeLatency["qwen3:0.6b"]}
+        />
 
-          <ModelCard
-            title="Qwen 2 (0.5B)"
-            content={results["qwen2:0.5b"]}
-            loading={loading}
-            latency={fakeLatency["qwen2:0.5b"]}
-          />
-        </div>
+        <ModelCard
+          title="Qwen 2 (0.5B)"
+          content={results["qwen2:0.5b"]}
+          loading={loading}
+          latency={fakeLatency["qwen2:0.5b"]}
+        />
       </div>
     </div>
   );
