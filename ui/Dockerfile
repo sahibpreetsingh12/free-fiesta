@@ -3,6 +3,11 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Accept the API URL as a build argument
+ARG NEXT_PUBLIC_API_URL
+# Set it as an environment variable for the build process
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 COPY package.json package-lock.json* ./
 RUN npm install
 

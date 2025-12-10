@@ -41,11 +41,16 @@ services:
 
   ui:
     container_name: free_fiesta_ui
-    build: ./ui
+    build:
+      context: ./ui
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "3000:3000"
     depends_on:
       - api
+    env_file:
+      - .env
 
   prometheus:
     image: prom/prometheus:latest
