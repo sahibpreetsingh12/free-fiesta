@@ -9,26 +9,65 @@ from ray.util.queue import Queue
 app = FastAPI()
 ray.init(ignore_reinit_error=True)
 
+# -----------------------
+# CONFIG
+# -----------------------
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+VLLM_URL = os.getenv("VLLM_URL", "http://34.10.217.235:8001")
 
+# Models mapped exactly to UI
 models = [
-    "qwen2.5:0.5b",
-    "qwen3:0.6b",
-    "qwen2:0.5b",
+    "qwen2.5:0.5b",   # → vLLM
+    "qwen3:0.6b",     # → Ollama
+    "qwen2:0.5b",     # → Ollama
 ]
 
-
+# -----------------------
+# RAY REMOTE WORKER
+# -----------------------
 @ray.remote
 def stream_model(model, prompt, temperature, queue):
-    """Stream tokens from Ollama and push into a Ray Queue."""
+    """Hybrid inference: first model via vLLM, remaining via Ollama."""
+
+    # 1️⃣ MODEL 1 → vLLM (GPU)
+    if model == "qwen2.5:0.5b":
+        payload = {
+            "model": "Qwen/Qwen2.5-0.5B",
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+            "temperature": temperature,
+            "max_tokens": 500,
+        }
+
+        with requests.post(f"{VLLM_URL}/v1/chat/completions", json=payload, stream=True) as r:
+            for line in r.iter_lines():
+                if not line or not line.startswith(b"data: "):
+                    continue
+
+                data = line[6:].decode()
+                if data == "[DONE]":
+                    break
+
+                try:
+                    delta = json.loads(data)["choices"][0]["delta"].get("content", "")
+                except:
+                    delta = ""
+
+                if delta:
+                    queue.put({"model": model, "token": delta})
+
+        queue.put({"model": model, "token": None})
+        return
+
+    # -----------------------------------------------------------
+    # 2️⃣ OTHER MODELS → OLLAMA (as before)
+    # -----------------------------------------------------------
     url = f"{OLLAMA_URL}/api/chat"
     payload = {
         "model": model,
         "stream": True,
         "messages": [{"role": "user", "content": prompt}],
-        "options": {
-            "temperature": temperature
-        }
+        "options": {"temperature": temperature}
     }
 
     with requests.post(url, json=payload, stream=True) as r:
@@ -40,16 +79,9 @@ def stream_model(model, prompt, temperature, queue):
             token = data.get("message", {}).get("content")
 
             if token:
-                queue.put({
-                    "model": model,
-                    "token": token
-                })
+                queue.put({"model": model, "token": token})
 
-    # Mark stream as completed for this model
-    queue.put({
-        "model": model,
-        "token": None
-    })
+    queue.put({"model": model, "token": None})
 
 
 @app.post("/stream_compare")
