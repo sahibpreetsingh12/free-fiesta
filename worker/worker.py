@@ -39,7 +39,7 @@ def stream_model(model, prompt, temperature, queue):
             "max_tokens": 500,
         }
 
-        with requests.post(f"{VLLM_URL}/v1/chat/completions", json=payload, stream=True) as r:
+        with requests.post(f"{VLLM_URL}/v1/completions", json=payload, stream=True) as r:
             for line in r.iter_lines():
                 if not line or not line.startswith(b"data: "):
                     continue
