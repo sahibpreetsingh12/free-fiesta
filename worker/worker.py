@@ -4,7 +4,7 @@ import requests
 import json
 import ray
 import os
-from ray.util.queue import Queue   
+from ray.util.queue import Queue
 
 app = FastAPI()
 ray.init(ignore_reinit_error=True)
@@ -27,50 +27,72 @@ models = [
 # -----------------------
 @ray.remote
 def stream_model(model, prompt, temperature, queue):
-    """Hybrid inference: first model via vLLM, remaining via Ollama."""
+    """
+    Hybrid inference:
+    - qwen2.5:0.5b → vLLM (/v1/completions)
+    - others → Ollama
+    """
 
-    # 1️⃣ MODEL 1 → vLLM (GPU)
+    # =======================
+    # 1️⃣ vLLM MODEL
+    # =======================
     if model == "qwen2.5:0.5b":
         payload = {
             "model": "Qwen/Qwen2.5-0.5B",
-            "messages": [{"role": "user", "content": prompt}],
+            "prompt": prompt,          # ✅ CORRECT for /v1/completions
             "stream": True,
             "temperature": temperature,
             "max_tokens": 500,
         }
 
-        with requests.post(f"{VLLM_URL}/v1/completions", json=payload, stream=True) as r:
+        with requests.post(
+            f"{VLLM_URL}/v1/completions",
+            json=payload,
+            stream=True,
+            timeout=300,
+        ) as r:
+
             for line in r.iter_lines():
-                if not line or not line.startswith(b"data: "):
+                if not line:
+                    continue
+
+                # vLLM streams as SSE: data: {...}
+                if not line.startswith(b"data: "):
                     continue
 
                 data = line[6:].decode()
+
                 if data == "[DONE]":
                     break
 
                 try:
-                    delta = json.loads(data)["choices"][0]["delta"].get("content", "")
-                except:
-                    delta = ""
+                    text = json.loads(data)["choices"][0].get("text", "")
+                except Exception:
+                    text = ""
 
-                if delta:
-                    queue.put({"model": model, "token": delta})
+                if text:
+                    queue.put({"model": model, "token": text})
 
         queue.put({"model": model, "token": None})
         return
 
-    # -----------------------------------------------------------
-    # 2️⃣ OTHER MODELS → OLLAMA (as before)
-    # -----------------------------------------------------------
-    url = f"{OLLAMA_URL}/api/chat"
+    # =======================
+    # 2️⃣ OLLAMA MODELS
+    # =======================
     payload = {
         "model": model,
         "stream": True,
         "messages": [{"role": "user", "content": prompt}],
-        "options": {"temperature": temperature}
+        "options": {"temperature": temperature},
     }
 
-    with requests.post(url, json=payload, stream=True) as r:
+    with requests.post(
+        f"{OLLAMA_URL}/api/chat",
+        json=payload,
+        stream=True,
+        timeout=300,
+    ) as r:
+
         for line in r.iter_lines():
             if not line:
                 continue
@@ -84,19 +106,19 @@ def stream_model(model, prompt, temperature, queue):
     queue.put({"model": model, "token": None})
 
 
+# -----------------------
+# FASTAPI STREAM ENDPOINT
+# -----------------------
 @app.post("/stream_compare")
 def stream_compare(data: dict):
     prompt = data["prompt"]
-    temperature = data.get("temperature", 0.7) # Default temperature if not provided
+    temperature = data.get("temperature", 0.7)
 
-    # One queue per model
     queues = [Queue() for _ in models]
 
-    # Start streaming workers
-    tasks = [
+    # Start Ray workers
+    for model, q in zip(models, queues):
         stream_model.remote(model, prompt, temperature, q)
-        for model, q in zip(models, queues)
-    ]
 
     finished = [False] * len(models)
 
