@@ -13,7 +13,7 @@ ray.init(ignore_reinit_error=True)
 # CONFIG
 # -----------------------
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-VLLM_URL = os.getenv("VLLM_URL", "http://34.10.217.235:8001")
+VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001")
 
 # Models mapped exactly to UI
 models = [
