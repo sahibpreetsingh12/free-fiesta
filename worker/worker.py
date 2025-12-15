@@ -5,6 +5,7 @@ import json
 import ray
 import os
 from ray.util.queue import Queue
+from requests.exceptions import RequestException
 
 app = FastAPI()
 ray.init(ignore_reinit_error=True)
@@ -15,70 +16,60 @@ ray.init(ignore_reinit_error=True)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001")
 
-# Models mapped exactly to UI
 models = [
-    "qwen2.5:0.5b",   # → vLLM
-    "qwen3:0.6b",     # → Ollama
-    "qwen2:0.5b",     # → Ollama
+    "qwen2.5:0.5b",   # GPU preferred
+    "qwen3:0.6b",
+    "qwen2:0.5b",
 ]
 
 # -----------------------
-# RAY REMOTE WORKER
+# RAY WORKER
 # -----------------------
 @ray.remote
 def stream_model(model, prompt, temperature, queue):
-    """
-    Hybrid inference:
-    - qwen2.5:0.5b → vLLM (/v1/completions)
-    - others → Ollama
-    """
 
-    # =======================
-    # 1️⃣ vLLM MODEL
-    # =======================
+    # ============================
+    # qwen2.5:0.5b → TRY GPU FIRST
+    # ============================
     if model == "qwen2.5:0.5b":
-        payload = {
-            "model": "Qwen/Qwen2.5-0.5B",
-            "prompt": prompt,          # ✅ CORRECT for /v1/completions
-            "stream": True,
-            "temperature": temperature,
-            "max_tokens": 500,
-        }
+        try:
+            payload = {
+                "model": "Qwen/Qwen2.5-0.5B",
+                "prompt": prompt,
+                "stream": True,
+                "temperature": temperature,
+                "max_tokens": 500,
+            }
 
-        with requests.post(
-            f"{VLLM_URL}/v1/completions",
-            json=payload,
-            stream=True,
-            timeout=300,
-        ) as r:
+            with requests.post(
+                f"{VLLM_URL}/v1/completions",
+                json=payload,
+                stream=True,
+                timeout=8,   # 👈 fast failure → quick fallback
+            ) as r:
 
-            for line in r.iter_lines():
-                if not line:
-                    continue
+                for line in r.iter_lines():
+                    if not line or not line.startswith(b"data: "):
+                        continue
 
-                # vLLM streams as SSE: data: {...}
-                if not line.startswith(b"data: "):
-                    continue
+                    data = line[6:].decode()
+                    if data == "[DONE]":
+                        break
 
-                data = line[6:].decode()
-
-                if data == "[DONE]":
-                    break
-
-                try:
                     text = json.loads(data)["choices"][0].get("text", "")
-                except Exception:
-                    text = ""
+                    if text:
+                        queue.put({"model": model, "token": text})
 
-                if text:
-                    queue.put({"model": model, "token": text})
+            queue.put({"model": model, "token": None})
+            return
 
-        queue.put({"model": model, "token": None})
-        return
+        except RequestException:
+            # 👇 GPU OFF → FALLBACK TO CPU (OLLAMA)
+            pass
 
-    # =======================
-    # 2️⃣ OLLAMA MODELS
-    # =======================
+    # ============================
+    # OLLAMA (CPU PATH)
+    # ============================
     payload = {
         "model": model,
         "stream": True,
@@ -107,7 +98,7 @@ def stream_model(model, prompt, temperature, queue):
 
 
 # -----------------------
-# FASTAPI STREAM ENDPOINT
+# STREAM ENDPOINT
 # -----------------------
 @app.post("/stream_compare")
 def stream_compare(data: dict):
@@ -116,7 +107,6 @@ def stream_compare(data: dict):
 
     queues = [Queue() for _ in models]
 
-    # Start Ray workers
     for model, q in zip(models, queues):
         stream_model.remote(model, prompt, temperature, q)
 
