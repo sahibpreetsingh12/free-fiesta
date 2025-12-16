@@ -37,14 +37,18 @@ def stream_model(model, prompt, temperature, queue):
             payload = {
                 "model": "Qwen/Qwen2.5-0.5B",
                 "messages": [
-                    {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
+                    {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
                 ],
                 "stream": True,
-                "temperature": temperature,
-                "max_tokens": 500,
+                # --- CRITICAL FIXES BELOW ---
+                "temperature": 0.7,         # Standard creativity
+                "top_p": 0.8,               # Nucleus sampling to filter low-prob tokens
+                "repetition_penalty": 1.05,  # Essential to stop the "lái lái lái" loop
+                "presence_penalty": 0.0,    # Keep neutral
+                "frequency_penalty": 0.0,   # Keep neutral
+                "max_tokens": 512,
             }
-
             with requests.post(
                 f"{VLLM_URL}/v1/chat/completions", # Changed endpoint
                 json=payload,
