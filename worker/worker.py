@@ -37,12 +37,12 @@ def stream_model(model, prompt, temperature, queue):
             payload = {
                 "model": "Qwen/Qwen2.5-0.5B",
                 "messages": [
-                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "system", "content": "You are a helpful assistant and You always remain polite and answer back ONLY IN ENGLISH."},
                     {"role": "user", "content": prompt}
                 ],
                 "stream": True,
                 # --- CRITICAL FIXES BELOW ---
-                "temperature": 0.7,         # Standard creativity
+                "temperature": 0.1,         # Standard creativity
                 "top_p": 0.8,               # Nucleus sampling to filter low-prob tokens
                 "repetition_penalty": 1.05,  # Essential to stop the "lái lái lái" loop
                 "presence_penalty": 0.0,    # Keep neutral
