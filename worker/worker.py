@@ -33,21 +33,24 @@ def stream_model(model, prompt, temperature, queue):
     # ============================
     if model == "qwen2.5:0.5b":
         try:
+            # Using /v1/chat/completions so vLLM applies the ChatML template
             payload = {
                 "model": "Qwen/Qwen2.5-0.5B",
-                "prompt": prompt,
+                "messages": [
+                    {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
                 "stream": True,
                 "temperature": temperature,
                 "max_tokens": 500,
             }
 
             with requests.post(
-                f"{VLLM_URL}/v1/completions",
+                f"{VLLM_URL}/v1/chat/completions", # Changed endpoint
                 json=payload,
                 stream=True,
-                timeout=8,   # 👈 fast failure → quick fallback
+                timeout=8,
             ) as r:
-
                 for line in r.iter_lines():
                     if not line or not line.startswith(b"data: "):
                         continue
@@ -55,18 +58,20 @@ def stream_model(model, prompt, temperature, queue):
                     data = line[6:].decode()
                     if data == "[DONE]":
                         break
-
-                    text = json.loads(data)["choices"][0].get("text", "")
+                    
+                    # Chat completions response structure is slightly different
+                    delta = json.loads(data)["choices"][0].get("delta", {})
+                    text = delta.get("content", "")
+                    
                     if text:
                         queue.put({"model": model, "token": text})
 
             queue.put({"model": model, "token": None})
             return
 
-        except RequestException:
-            # 👇 GPU OFF → FALLBACK TO CPU (OLLAMA)
-            pass
-
+        except Exception as e:
+            print(f"vLLM Error: {e}")
+            pass # Fallback to Ollama happens automatically
     # ============================
     # OLLAMA (CPU PATH)
     # ============================
@@ -103,7 +108,7 @@ def stream_model(model, prompt, temperature, queue):
 @app.post("/stream_compare")
 def stream_compare(data: dict):
     prompt = data["prompt"]
-    temperature = data.get("temperature", 0.7)
+    temperature = data.get("temperature", 0.3)
 
     queues = [Queue() for _ in models]
 

@@ -8,7 +8,7 @@ import styles from "./page.module.css";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [temperature, setTemperature] = useState(0.7);
+  const [temperature, setTemperature] = useState(0.3);
   const { results, loading, startStreaming } = useModelStreams();
 
   const fakeLatency = {
