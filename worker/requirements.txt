@@ -2,3 +2,4 @@ fastapi==0.110.0
 uvicorn==0.29.0
 ray[default]==2.10.0
 requests==2.31.0
+slowapi==0.1.9           # For Rate Limiting

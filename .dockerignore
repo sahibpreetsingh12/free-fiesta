@@ -1,0 +1,20 @@
+# Git history (can be gigabytes)
+.git
+.gitignore
+
+# Python virtual environments (The biggest culprit for slowness)
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local model caches or large data files
+.cache/
+huggingface/
+*.db
+*.log
+
+# Docker/CI metadata
+.github/
+docker-compose.yml
+Dockerfile

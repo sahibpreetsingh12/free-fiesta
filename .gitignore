@@ -96,3 +96,9 @@ logs/
 *.temp
 *~
 
+# Allure Reports (Do not push these)
+allure-results/
+allure-report/
+
+# Docker junk
+.env
