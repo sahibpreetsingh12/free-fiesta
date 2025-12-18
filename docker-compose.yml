@@ -25,6 +25,7 @@ services:
     volumes:
       - ./worker:/app           # Syncs worker code
       - ./tests:/app/tests      # Syncs your tests folder
+      - ./allure-results:/app/allure-results
     command: uvicorn worker:app --host 0.0.0.0 --port 9000 --timeout-keep-alive 0
 
   api:
