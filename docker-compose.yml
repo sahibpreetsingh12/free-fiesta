@@ -23,9 +23,7 @@ services:
     depends_on:
       - ollama
     volumes:
-      - ./worker:/app           # Syncs worker code
-      - ./tests:/app/tests      # Syncs your tests folder
-      - ./allure-results:/app/allure-results
+      - ./worker:/app           # /app/worker.py
     command: uvicorn worker:app --host 0.0.0.0 --port 9000 --timeout-keep-alive 0
 
   api:
@@ -38,7 +36,9 @@ services:
     depends_on:
       - worker
     volumes:
-      - ./backend:/app          # Syncs backend code
+      - ./backend:/app          # /app/app.py exists here
+      - ./tests:/app/tests      # 👈 Mounts tests so API container can see them
+      - ./allure-results:/app/allure-results # 👈 Saves results here
     command: uvicorn app:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 0
 
   ui:
