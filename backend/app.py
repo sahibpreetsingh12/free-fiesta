@@ -6,8 +6,16 @@ from slowapi.errors import RateLimitExceeded
 from fastapi.responses import StreamingResponse
 import requests
 
+# --- NEW: Custom Key Function ---
+def get_real_ip(request: Request):
+    # 1. Check if we have a specific header (from Nginx, Cloudflare, or our Test)
+    if request.headers.get("X-Real-IP"):
+        return request.headers.get("X-Real-IP")
+    # 2. Fallback to the standard connection
+    return get_remote_address(request)
+
 # 1. Initialize Limiter
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_real_ip)
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
