@@ -1,6 +1,6 @@
 import pytest
 import allure
-import time
+from unittest.mock import patch, MagicMock
 
 @allure.suite("API Health & Security")
 class TestAPI:
@@ -15,28 +15,36 @@ class TestAPI:
     @allure.title("Rate Limiter Verification")
     @allure.description("Simulate rapid requests to ensure the 5/minute limit is enforced.")
     def test_rate_limiter_enforcement(self, client):
-        # Force a specific IP so the limiter definitely tracks us
-        headers = {"X-Real-IP": "10.0.0.1"}
+        # We Mock the network call to the worker. 
+        # This allows tests to pass on GitHub Actions where no Worker exists.
+        with patch("requests.post") as mock_post:
+            
+            # Setup the Mock to mimic a successful streaming response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            # Mocking the context manager (__enter__) and iter_lines for streaming
+            mock_response.__enter__.return_value.iter_lines.return_value = [b"mocked data"]
+            mock_post.return_value = mock_response
 
-        # 1. Send 5 successful requests
-        for i in range(5):
-            with allure.step(f"Request {i+1}: Should succeed"):
-                response = client.post("/stream_compare", json={"prompt": "test"}, headers=headers)
-                assert response.status_code == 200
+            # Force a specific IP so the limiter definitely tracks us
+            headers = {"X-Real-IP": "10.0.0.1"}
 
-        # 2. The 6th request should be blocked
-        with allure.step("Request 6: Should be blocked by Rate Limiter"):
-            response = client.post("/stream_compare", json={"prompt": "over limit"}, headers=headers)
-            # If this still fails, your Limiter setup in app.py might be missing the Middleware
-            assert response.status_code == 429
-        # 1. Send 5 successful requests (Assuming your limit is 5/minute)
-        for i in range(5):
-            with allure.step(f"Request {i+1}: Should succeed"):
-                response = client.post("/stream_compare", json={"prompt": "test"})
-                assert response.status_code == 200
+            # 1. Send 5 successful requests
+            for i in range(5):
+                with allure.step(f"Request {i+1}: Should succeed"):
+                    response = client.post(
+                        "/stream_compare", 
+                        json={"prompt": "test"}, 
+                        headers=headers
+                    )
+                    assert response.status_code == 200
 
-        # 2. The 6th request should be blocked
-        with allure.step("Request 6: Should be blocked by Rate Limiter"):
-            response = client.post("/stream_compare", json={"prompt": "over limit"})
-            assert response.status_code == 429
-            assert "Too many requests" in response.text
+            # 2. The 6th request should be blocked
+            with allure.step("Request 6: Should be blocked by Rate Limiter"):
+                response = client.post(
+                    "/stream_compare", 
+                    json={"prompt": "over limit"}, 
+                    headers=headers
+                )
+                assert response.status_code == 429
+                assert "Too Many Requests" in response.text
