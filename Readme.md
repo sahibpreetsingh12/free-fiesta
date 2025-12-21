@@ -19,3 +19,7 @@ sudo dpkg -i allure_2.36.0-1_all.deb
 # Serve
 
 allure serve ./allure-results --host 0.0.0.0 --port 1234
+
+and in the main branch we have run_tests.sh
+
+which runs and serves API test results
