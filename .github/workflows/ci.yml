@@ -1,0 +1,40 @@
+name: Free-Fiesta CI
+
+# Trigger on push to main branch or Pull Requests
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Check out the code
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 2. Set up Python (Simulating your API container environment)
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    # 3. Install Dependencies
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # We only need backend requirements + testing tools here
+        pip install -r backend/requirements.txt
+        pip install pytest httpx pytest-mock
+
+    # 4. Run Tests (Unit Tests Only)
+    # Note: We are NOT running docker-compose here yet because GitHub Runners 
+    # don't have GPUs for your Worker. We are testing the API logic in isolation.
+    - name: Run API Tests
+      run: |
+        # We set PYTHONPATH so it can find 'app.py' inside backend/
+        export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
+        pytest tests/
