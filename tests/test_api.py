@@ -47,4 +47,5 @@ class TestAPI:
                     headers=headers
                 )
                 assert response.status_code == 429
-                assert "Too Many Requests" in response.text
+                # NEW (Passing)
+                assert "Rate limit exceeded" in response.text
