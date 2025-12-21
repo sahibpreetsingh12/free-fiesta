@@ -1,7 +1,8 @@
 fastapi==0.110.0
 uvicorn==0.29.0
 requests==2.31.0
-slowapi==0.1.9           # For Rate Limiting
-pytest==8.1.1
-allure-pytest==2.13.2
+slowapi==0.1.9
+# --- FIX BELOW ---
+pytest==8.0.2            # Downgrade from 8.1.1 to 8.0.2
+allure-pytest==2.13.2    # This version works perfectly with pytest 8.0.2
 httpx==0.27.0
