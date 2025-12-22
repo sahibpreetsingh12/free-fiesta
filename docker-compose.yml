@@ -34,9 +34,19 @@ services:
     
     command: >
       /bin/bash -c "
-      ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
+      # 1. Start Ray Cluster (Head Node)
+      # --http-host=0.0.0.0 : Allows outside connections (like from your API container)
+      # --http-port=9000    : The port where we send REST requests
+      ray start --head \
+        --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 \
+        --http-host=0.0.0.0 --http-port=9000 \
+        --disable-usage-stats --block & 
+      
+      # 2. Wait for Ray to wake up
       sleep 10 && 
-      serve run --host 0.0.0.0 --port 9000 worker.ray_app:ingress"
+      
+      # 3. Deploy the App (No flags needed, it talks to the local Ray automatically)
+      serve run worker.ray_app:ingress"
 
   api:
     container_name: free_fiesta_api
