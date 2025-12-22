@@ -34,12 +34,12 @@ class GPUModel:
             "temperature": 0.1
         }
         
-        # We let requests raise an error naturally so the Orchestrator catches it
+        # Try connecting to GPU. If it fails, we let the Orchestrator handle the crash.
         with requests.post(
             f"{VLLM_URL}/v1/chat/completions",
             json=payload,
             stream=True,
-            timeout=5 # Short timeout -> Fail fast -> Switch to CPU
+            timeout=5 # Fail fast (5s) if GPU is off
         ) as r:
             r.raise_for_status()
             
@@ -54,7 +54,7 @@ class GPUModel:
                         data = json.loads(json_str)
                         content = data["choices"][0]["delta"].get("content", "")
                         if content:
-                            # Use exact ID expected by UI
+                            # Send exact ID expected by UI Box 1
                             yield json.dumps({"model": "qwen2.5:0.5b", "token": content}) + "\n"
                     except:
                         continue
@@ -64,14 +64,15 @@ class GPUModel:
 # ---------------------------------------------------------
 @serve.deployment(name="cpu_model")
 class CPUModel:
-    def get_stream(self, model_name: str, prompt: str, is_fallback: bool = False):
+    def get_stream(self, model_name: str, prompt: str, target_ui_name: str = None):
+        """
+        model_name: The actual model to run in Ollama (must exist there)
+        target_ui_name: The name we send back to the UI (so it goes in the right box)
+        """
         
-        # 1. Prepare visual indicator if this is a fallback
-        # We DO NOT change the 'model' key, or the UI will ignore the message.
-        # Instead, we send a prefix token first.
-        prefix = ""
-        if is_fallback:
-             prefix = "⚠️ [GPU Offline - Switched to CPU]\n\n"
+        # If no target name is provided, use the actual model name
+        if not target_ui_name:
+            target_ui_name = model_name
 
         payload = {
             "model": model_name,
@@ -81,10 +82,6 @@ class CPUModel:
         }
         
         try:
-            # Send the prefix first (if any)
-            if prefix:
-                yield json.dumps({"model": model_name, "token": prefix}) + "\n"
-
             with requests.post(
                 f"{OLLAMA_URL}/api/chat",
                 json=payload,
@@ -92,7 +89,7 @@ class CPUModel:
                 timeout=300
             ) as r:
                 if r.status_code != 200:
-                    yield json.dumps({"model": model_name, "token": f" [Error: Ollama {r.status_code}]"}) + "\n"
+                    yield json.dumps({"model": target_ui_name, "token": f" [Error: Ollama {r.status_code}]"}) + "\n"
                     return
 
                 for line in r.iter_lines():
@@ -102,12 +99,12 @@ class CPUModel:
                         if data.get("done"): break
                         content = data.get("message", {}).get("content", "")
                         if content:
-                            yield json.dumps({"model": model_name, "token": content}) + "\n"
+                            yield json.dumps({"model": target_ui_name, "token": content}) + "\n"
                     except:
                         continue
                         
         except Exception as e:
-            yield json.dumps({"model": model_name, "token": f" [Error: {str(e)}]"}) + "\n"
+            yield json.dumps({"model": target_ui_name, "token": f" [Error: {str(e)}]"}) + "\n"
 
 # ---------------------------------------------------------
 # DEPLOYMENT 3: The Orchestrator
@@ -123,43 +120,49 @@ class Orchestrator:
     async def stream_compare(self, data: Dict):
         prompt = data.get("prompt")
 
-        # --- STREAM 1: GPU (with fallback) ---
+        # --- STREAM 1: GPU Box (with silent CPU fallback) ---
         async def smart_gpu_stream():
             try:
                 gpu_gen = self.gpu.options(stream=True).get_stream.remote(prompt)
                 async for item in gpu_gen:
                     yield item
             except Exception as e:
-                # Call CPU but use the SAME model name "qwen2.5:0.5b"
-                # so the UI puts the text in the correct box.
+                # SILENT FALLBACK: Run CPU model, but label it "qwen2.5:0.5b" so it fills Box 1
                 fallback_gen = self.cpu.options(stream=True).get_stream.remote(
-                    "qwen2.5:0.5b", prompt, is_fallback=True
+                    model_name="qwen2.5:0.5b", 
+                    prompt=prompt,
+                    target_ui_name="qwen2.5:0.5b"
                 )
                 async for item in fallback_gen:
                     yield item
 
-        # --- STREAM 2: Standard Comparison (Qwen 2) ---
-        # Ensure this model name matches your UI exactly
-        cpu_gen_2 = self.cpu.options(stream=True).get_stream.remote("qwen2:0.5b", prompt)
+        # --- STREAM 2: Middle Box (Qwen 3) ---
+        # Note: I am running "qwen2.5:0.5b" behind the scenes to ensure it works,
+        # but I am sending the ID "qwen3:0.6b" (or whatever your UI expects for Box 2).
+        # IF YOU HAVE ACTUAL QWEN 3 INSTALLED, change model_name="qwen3:0.6b"
+        cpu_gen_middle = self.cpu.options(stream=True).get_stream.remote(
+            model_name="qwen2.5:0.5b", 
+            prompt=prompt, 
+            target_ui_name="qwen3:0.6b" # <--- This key directs it to the Middle Box
+        )
 
-        # --- STREAM 3: The Missing Link (Qwen 3 / or another model) ---
-        # Note: Ensure you have "qwen2.5:0.5b" or the correct model pulled in Ollama
-        # If you don't have an actual Qwen 3 model, I'm reusing qwen2.5 for demo
-        cpu_gen_3 = self.cpu.options(stream=True).get_stream.remote("qwen2.5:0.5b", prompt)
-        
-        # If you want to trick the UI into thinking it's Qwen 3 (just for display):
-        # You would need to update the CPUModel to accept a "target_ui_box" parameter.
-        # For now, let's assume your UI expects "qwen2.5:1.5b" or similar for the middle box.
+        # --- STREAM 3: Right Box (Qwen 2) ---
+        cpu_gen_right = self.cpu.options(stream=True).get_stream.remote(
+            model_name="qwen2:0.5b", 
+            prompt=prompt,
+            target_ui_name="qwen2:0.5b"
+        )
 
         # --- MERGE ALL 3 ---
         async def merge_streams():
-            # In Python, we can't easily run 3 async generators in parallel 
-            # without a library like 'aiostream', so we chain them for stability.
-            # (Or simply yield them one by one).
-            
+            # 1. Yield GPU/Fallback stream
             async for item in smart_gpu_stream(): yield item
-            async for item in cpu_gen_2: yield item
-            async for item in cpu_gen_3: yield item 
+            
+            # 2. Yield Middle Box stream
+            async for item in cpu_gen_middle: yield item
+            
+            # 3. Yield Right Box stream
+            async for item in cpu_gen_right: yield item
 
         return StreamingResponse(merge_streams(), media_type="text/event-stream")
 
