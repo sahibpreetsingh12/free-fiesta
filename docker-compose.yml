@@ -13,9 +13,12 @@ services:
   worker:
     container_name: free_fiesta_worker
     build: ./worker
-    shm_size: '1gb'
+    # CHANGED: 5gb is safe for a 16GB RAM VM. 
+    # 1gb is too small for Ray; 10gb is too big for your VM.
+    shm_size: '5gb' 
     ports:
-      - "9000:9000"
+      - "9000:9000"  # The Serve HTTP Port
+      - "8265:8265"  # The Ray Dashboard (Open this in GCP Firewall!)
     environment:
       - OLLAMA_URL=http://ollama:11434
       - VLLM_URL=http://34.0.43.79:8001
@@ -23,8 +26,21 @@ services:
     depends_on:
       - ollama
     volumes:
-      - ./worker:/app           # /app/worker.py
-    command: uvicorn worker:app --host 0.0.0.0 --port 9000 --timeout-keep-alive 0
+      - ./worker:/app           
+      - ~/.cache/huggingface:/root/.cache/huggingface # Optional: Cache models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # CHANGED: Start Ray Head Node -> Wait 10s -> Deploy the App
+    command: >
+      /bin/bash -c "
+      ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
+      sleep 10 && 
+      serve run --host 0.0.0.0 --port 9000 worker.ray_app:ingress"
 
   api:
     container_name: free_fiesta_api
@@ -36,9 +52,9 @@ services:
     depends_on:
       - worker
     volumes:
-      - ./backend:/app          # /app/app.py exists here
-      - ./tests:/app/tests      # 👈 Mounts tests so API container can see them
-      - ./allure-results:/app/allure-results # 👈 Saves results here
+      - ./backend:/app          
+      - ./tests:/app/tests      
+      - ./allure-results:/app/allure-results 
     command: uvicorn app:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 0
 
   ui:
