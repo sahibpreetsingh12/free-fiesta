@@ -21,7 +21,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - VLLM_URL=http://34.0.43.79:8001
       - PYTHONUNBUFFERED=1
-      # Tell Ray to listen on all interfaces for the Serve Proxy
+      # ✅ This tells Ray Serve where to bind (Replaces the --host flag)
       - RAY_SERVE_HTTP_HOST=0.0.0.0
       - RAY_SERVE_HTTP_PORT=9000
     depends_on:
@@ -30,14 +30,15 @@ services:
       - ./worker:/app           
       - ~/.cache/huggingface:/root/.cache/huggingface
     
-    # FIXED COMMAND:
-    # 1. Removed invalid --http-host flags from 'ray start'
-    # 2. Changed import path from 'worker.ray_app' to 'ray_app' (since /app is the root)
+    # ✅ FINAL CORRECTED COMMAND:
+    # 1. 'ray start' sets up the cluster.
+    # 2. 'serve run' only needs the file path. (No --host/--port flags allowed here!)
     command: >
       /bin/bash -c "
       ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
       sleep 10 && 
-      serve run --host 0.0.0.0 --port 9000 ray_app:ingress"
+      serve run ray_app:ingress"
+      
   api:
     container_name: free_fiesta_api
     build: ./backend
