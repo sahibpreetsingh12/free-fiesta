@@ -15,34 +15,24 @@ services:
     build: ./worker
     shm_size: '10.24gb'
     ports:
-      - "9000:9000"  # Ray Serve HTTP Port
-      - "8265:8265"  # Ray Dashboard
+      - "9000:9000"
+      - "8265:8265"
     environment:
       - OLLAMA_URL=http://ollama:11434
       - VLLM_URL=http://34.0.43.79:8001
       - PYTHONUNBUFFERED=1
-      # ✅ THESE 2 VARIABLES DO THE WORK. NO FLAGS NEEDED.
-      - RAY_SERVE_HTTP_HOST=0.0.0.0
-      - RAY_SERVE_HTTP_PORT=9000
     depends_on:
       - ollama
     volumes:
       - ./worker:/app           
       - ~/.cache/huggingface:/root/.cache/huggingface
     
-    # ✅ FIX: Removed invalid '--host' and '--port' flags.
-    # 'serve run' automatically reads the RAY_SERVE_HTTP_... env vars above.
+    # ✅ FIX: Sequential command with properly closed quotes
     command: >
       /bin/bash -c "
-      # 1. Start the Cluster Backplane
-      ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
-      sleep 10 && 
-      
-      # 2. Force the HTTP Proxy to listen on 0.0.0.0 (The Fix)
+      ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats && 
       serve start --http-host 0.0.0.0 --http-port 9000 && 
-      
-      # 3. Deploy your clean Python code to the running server
-      serve run ray_app:ingress" 
+      serve run ray_app:ingress"
 
   api:
     container_name: free_fiesta_api
