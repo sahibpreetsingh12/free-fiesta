@@ -21,7 +21,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - VLLM_URL=http://34.0.43.79:8001
       - PYTHONUNBUFFERED=1
-      # ✅ This tells Ray Serve where to bind (Replaces the --host flag)
+      # These are good to keep, but the command flags below are stronger
       - RAY_SERVE_HTTP_HOST=0.0.0.0
       - RAY_SERVE_HTTP_PORT=9000
     depends_on:
@@ -37,7 +37,7 @@ services:
       /bin/bash -c "
       ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
       sleep 10 && 
-      serve run ray_app:ingress"
+      serve run ray_app:ingress --host 0.0.0.0 --port 9000"
       
   api:
     container_name: free_fiesta_api

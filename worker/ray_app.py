@@ -9,12 +9,12 @@ from typing import Dict
 
 # 1. Initialize Ray and Serve
 # We point to the local Ray instance running in the container
-ray.init(address="auto", ignore_reinit_error=True)
-# NEW (Force Port 9000 and Allow External Access)
-serve.start(
-    detached=True, 
-    http_options={"host": "0.0.0.0", "port": 9000}
-)
+# ray.init(address="auto", ignore_reinit_error=True)
+# # NEW (Force Port 9000 and Allow External Access)
+# serve.start(
+#     detached=True, 
+#     http_options={"host": "0.0.0.0", "port": 9000}
+# )
 
 # Config
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
