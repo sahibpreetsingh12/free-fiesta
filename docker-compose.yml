@@ -13,7 +13,7 @@ services:
   worker:
     container_name: free_fiesta_worker
     build: ./worker
-    # 10.24gb is safe because you upgraded to 32GB RAM
+    # 10.24gb is safe for your 32GB RAM VM
     shm_size: '10.24gb'
     ports:
       - "9000:9000"  # Ray Serve HTTP Port
@@ -28,25 +28,10 @@ services:
     volumes:
       - ./worker:/app
       - ~/.cache/huggingface:/root/.cache/huggingface
-    # ❌ REMOVED: GPU Reservation Block
-    # Since this VM is the "Controller", it runs on CPU and sends requests
-    # to your other VM (34.0.43.79) for the actual GPU work.
     
+    # ✅ FIXED COMMAND: Single line to prevent Bash syntax errors
     command: >
-      /bin/bash -c "
-      # 1. Start Ray Cluster (Head Node)
-      # --http-host=0.0.0.0 : Allows outside connections (like from your API container)
-      # --http-port=9000    : The port where we send REST requests
-      ray start --head \
-        --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 \
-        --http-host=0.0.0.0 --http-port=9000 \
-        --disable-usage-stats --block & 
-      
-      # 2. Wait for Ray to wake up
-      sleep 10 && 
-      
-      # 3. Deploy the App (No flags needed, it talks to the local Ray automatically)
-      serve run worker.ray_app:ingress"
+      /bin/bash -c "ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --http-host=0.0.0.0 --http-port=9000 --disable-usage-stats --block & sleep 10 && serve run worker.ray_app:ingress"
 
   api:
     container_name: free_fiesta_api
