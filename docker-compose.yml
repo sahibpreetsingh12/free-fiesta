@@ -9,7 +9,7 @@ services:
     ports:
       - "11434:11434"
     restart: always
-
+    
   worker:
     container_name: free_fiesta_worker
     build: ./worker
@@ -21,7 +21,7 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - VLLM_URL=http://34.0.43.79:8001
       - PYTHONUNBUFFERED=1
-      # These are good to keep, but the command flags below are stronger
+      # ✅ THESE 2 VARIABLES DO THE WORK. NO FLAGS NEEDED.
       - RAY_SERVE_HTTP_HOST=0.0.0.0
       - RAY_SERVE_HTTP_PORT=9000
     depends_on:
@@ -30,15 +30,14 @@ services:
       - ./worker:/app           
       - ~/.cache/huggingface:/root/.cache/huggingface
     
-    # ✅ FINAL CORRECTED COMMAND:
-    # 1. 'ray start' sets up the cluster.
-    # 2. 'serve run' only needs the file path. (No --host/--port flags allowed here!)
+    # ✅ FIX: Removed invalid '--host' and '--port' flags.
+    # 'serve run' automatically reads the RAY_SERVE_HTTP_... env vars above.
     command: >
       /bin/bash -c "
       ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
       sleep 10 && 
-      serve run ray_app:ingress --host 0.0.0.0 --port 9000"
-      
+      serve run ray_app:ingress" 
+
   api:
     container_name: free_fiesta_api
     build: ./backend
