@@ -9,7 +9,7 @@ services:
     ports:
       - "11434:11434"
     restart: always
-    
+
   worker:
     container_name: free_fiesta_worker
     build: ./worker
@@ -34,8 +34,14 @@ services:
     # 'serve run' automatically reads the RAY_SERVE_HTTP_... env vars above.
     command: >
       /bin/bash -c "
+      # 1. Start the Cluster Backplane
       ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats --block & 
       sleep 10 && 
+      
+      # 2. Force the HTTP Proxy to listen on 0.0.0.0 (The Fix)
+      serve start --http-host 0.0.0.0 --http-port 9000 && 
+      
+      # 3. Deploy your clean Python code to the running server
       serve run ray_app:ingress" 
 
   api:
