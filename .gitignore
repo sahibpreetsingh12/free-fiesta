@@ -68,6 +68,7 @@ build/
 .env
 .env.*
 *.env
+*.deb
 
 # ============================
 # OS Junk Files
