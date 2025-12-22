@@ -7,14 +7,10 @@ import os
 import json
 from typing import Dict
 
-# 1. Initialize Ray and Serve
-# We point to the local Ray instance running in the container
-# ray.init(address="auto", ignore_reinit_error=True)
-# # NEW (Force Port 9000 and Allow External Access)
-# serve.start(
-#     detached=True, 
-#     http_options={"host": "0.0.0.0", "port": 9000}
-# )
+# ---------------------------------------------------------
+# REMEMBER: No manual ray.init() or serve.start() here.
+# Docker handles the connection now!
+# ---------------------------------------------------------
 
 # Config
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
@@ -23,12 +19,12 @@ VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001")
 app = FastAPI()
 
 # ---------------------------------------------------------
-# DEPLOYMENT 1: The GPU Worker (The Specialist)
+# DEPLOYMENT 1: The GPU Worker
 # ---------------------------------------------------------
 @serve.deployment(
     name="gpu_model",
-    autoscaling_config={"min_replicas": 1, "max_replicas": 2}, # Auto-scale if busy!
-    ray_actor_options={"num_cpus": 1} # Reserve 1 CPU per replica
+    autoscaling_config={"min_replicas": 1, "max_replicas": 2},
+    ray_actor_options={"num_cpus": 1} 
 )
 class GPUModel:
     def get_stream(self, prompt: str):
@@ -52,15 +48,13 @@ class GPUModel:
                 for line in r.iter_lines():
                     if line:
                         decoded = line.decode("utf-8")
-                        # vLLM returns "data: {...}"
                         if decoded.startswith("data: "):
                             yield decoded + "\n"
         except Exception as e:
-            # If GPU fails, we return a special error flag
             yield f"ERROR: {str(e)}\n"
 
 # ---------------------------------------------------------
-# DEPLOYMENT 2: The CPU Worker (The Fallback)
+# DEPLOYMENT 2: The CPU Worker
 # ---------------------------------------------------------
 @serve.deployment(name="cpu_model")
 class CPUModel:
@@ -89,21 +83,15 @@ class Orchestrator:
     async def stream_compare(self, data: Dict):
         prompt = data.get("prompt")
         
-        # 1. Ask GPU (Async)
-        # In the future, we can batch this or wait for multiple results
-        gpu_generator = self.gpu.get_stream.remote(prompt)
+        # ✅ FIX: Added .options(stream=True)
+        # This tells Ray that 'get_stream' will yield multiple results over time.
+        gpu_generator = self.gpu.options(stream=True).get_stream.remote(prompt)
         
-        # 2. Return a Streaming Response
-        # Note: For now, we are just proving the connection works.
-        # In the next step, we will merge multiple streams.
         return StreamingResponse(gpu_generator, media_type="text/event-stream")
 
 # ---------------------------------------------------------
 # WIRING IT TOGETHER
 # ---------------------------------------------------------
-# 1. Create the Deployments
 gpu_deployment = GPUModel.bind()
 cpu_deployment = CPUModel.bind()
-
-# 2. Create the Manager and give it access to the Workers
 ingress = Orchestrator.bind(gpu_deployment, cpu_deployment)
