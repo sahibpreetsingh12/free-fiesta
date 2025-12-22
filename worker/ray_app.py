@@ -7,11 +7,6 @@ import os
 import json
 from typing import Dict
 
-# ---------------------------------------------------------
-# REMEMBER: No manual ray.init() or serve.start() here.
-# Docker handles the connection now!
-# ---------------------------------------------------------
-
 # Config
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001")
@@ -19,7 +14,7 @@ VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001")
 app = FastAPI()
 
 # ---------------------------------------------------------
-# DEPLOYMENT 1: The GPU Worker
+# DEPLOYMENT 1: The GPU Worker (Fixed Format)
 # ---------------------------------------------------------
 @serve.deployment(
     name="gpu_model",
@@ -46,31 +41,48 @@ class GPUModel:
                 timeout=8
             ) as r:
                 for line in r.iter_lines():
-                    if line:
-                        decoded = line.decode("utf-8")
-                        if decoded.startswith("data: "):
-                            yield decoded + "\n"
+                    if not line:
+                        continue
+                    
+                    decoded = line.decode("utf-8")
+                    
+                    # 1. Skip the "DONE" signal
+                    if "[DONE]" in decoded:
+                        break
+                        
+                    # 2. Parse the vLLM "data: {...}" format
+                    if decoded.startswith("data: "):
+                        json_str = decoded[6:] # Strip "data: "
+                        try:
+                            data = json.loads(json_str)
+                            # 3. Extract the actual text token
+                            content = data["choices"][0]["delta"].get("content", "")
+                            
+                            if content:
+                                # 4. Yield in the format the Frontend expects
+                                output = {
+                                    "model": "qwen2.5:0.5b", 
+                                    "token": content
+                                }
+                                yield json.dumps(output) + "\n"
+                        except:
+                            continue
+                            
         except Exception as e:
-            yield f"ERROR: {str(e)}\n"
+            err_output = {"model": "qwen2.5:0.5b", "token": f" [Error: {str(e)}]"}
+            yield json.dumps(err_output) + "\n"
 
 # ---------------------------------------------------------
-# DEPLOYMENT 2: The CPU Worker
+# DEPLOYMENT 2: The CPU Worker (Placeholder)
 # ---------------------------------------------------------
 @serve.deployment(name="cpu_model")
 class CPUModel:
     def get_stream(self, model_name: str, prompt: str):
-        payload = {
-            "model": model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": True
-        }
-        with requests.post(f"{OLLAMA_URL}/api/chat", json=payload, stream=True) as r:
-            for line in r.iter_lines():
-                if line:
-                    yield line.decode("utf-8") + "\n"
+        # We will fix this one later if needed, focusing on GPU first
+        yield json.dumps({"model": model_name, "token": ""}) + "\n"
 
 # ---------------------------------------------------------
-# DEPLOYMENT 3: The Orchestrator (The Manager)
+# DEPLOYMENT 3: The Orchestrator
 # ---------------------------------------------------------
 @serve.deployment(name="orchestrator")
 @serve.ingress(app)
@@ -82,15 +94,12 @@ class Orchestrator:
     @app.post("/stream_compare")
     async def stream_compare(self, data: Dict):
         prompt = data.get("prompt")
-        
-        # ✅ FIX: Added .options(stream=True)
-        # This tells Ray that 'get_stream' will yield multiple results over time.
+        # Ensure we use .options(stream=True)
         gpu_generator = self.gpu.options(stream=True).get_stream.remote(prompt)
-        
         return StreamingResponse(gpu_generator, media_type="text/event-stream")
 
 # ---------------------------------------------------------
-# WIRING IT TOGETHER
+# WIRING
 # ---------------------------------------------------------
 gpu_deployment = GPUModel.bind()
 cpu_deployment = CPUModel.bind()
