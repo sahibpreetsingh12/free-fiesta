@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # --- 1. CPU Inference Engine ---
   ollama:
     image: ollama/ollama:latest
     container_name: free_fiesta_ollama
@@ -10,16 +13,18 @@ services:
       - "11434:11434"
     restart: always
 
+  # --- 2. Heavy Worker (Ray Serve) ---
   worker:
     container_name: free_fiesta_worker
     build: ./worker
     shm_size: '10.24gb'
     ports:
-      - "9000:9000"
-      - "8265:8265"
+      - "9000:9000"  # Ray Serve HTTP
+      - "8265:8265"  # Ray Dashboard
     environment:
       - OLLAMA_URL=http://ollama:11434
-      - VLLM_URL=http://34.0.43.79:8001
+      # POINT TO NOWHERE: Fails instantly so UI doesn't hang
+      - VLLM_URL=http://localhost:9999 
       - PYTHONUNBUFFERED=1
     depends_on:
       - ollama
@@ -27,13 +32,14 @@ services:
       - ./worker:/app           
       - ~/.cache/huggingface:/root/.cache/huggingface
     
-    # ✅ FIX: Sequential command with properly closed quotes
+    # Start Ray Head + Serve (HTTP Proxy on 9000) + Deploy App
     command: >
       /bin/bash -c "
       ray start --head --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --disable-usage-stats && 
       serve start --http-host 0.0.0.0 --http-port 9000 && 
       serve run ray_app:ingress"
 
+  # --- 3. API Gateway (FastAPI) ---
   api:
     container_name: free_fiesta_api
     build: ./backend
@@ -41,6 +47,9 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      # IMPORTANT: If your app.py talks to Ray, it needs to know where Ray is.
+      # But usually, Ray Client connects via Ray's internal ports or HTTP.
+      # If your 'app.py' is just a proxy, ensure it calls 'http://worker:9000'
     depends_on:
       - worker
     volumes:
@@ -49,11 +58,15 @@ services:
       - ./allure-results:/app/allure-results
     command: uvicorn app:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 0
 
+  # --- 4. Frontend ---
   ui:
     container_name: free_fiesta_ui
     build: ./ui
     ports:
       - "3000:3000"
+    environment:
+      # MUST be the Public IP of your VM so the Browser can reach it
+      - NEXT_PUBLIC_API_URL=http://34.130.43.66:8000
     depends_on:
       - api
 
