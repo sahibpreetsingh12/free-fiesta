@@ -68,6 +68,7 @@ build/
 .env
 .env.*
 *.env
+*.deb
 
 # ============================
 # OS Junk Files
@@ -103,3 +104,8 @@ allure-report/
 
 # Docker junk
 .env
+
+#-----------------------------
+# Custom Shell files
+#-----------------------------
+*update_firewall.sh
