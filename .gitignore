@@ -104,3 +104,8 @@ allure-report/
 
 # Docker junk
 .env
+
+#-----------------------------
+# Custom Shell files
+#-----------------------------
+*update_firewall.sh
