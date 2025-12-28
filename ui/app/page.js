@@ -17,12 +17,24 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [temperature, setTemperature] = useState(0.3);
   
-  // Destructure 'metrics' from our updated hook
   const { results, metrics, loading, startStreaming } = useModelStreams();
 
   const handleClear = () => {
     setPrompt("");
   };
+
+  // --- WINNER LOGIC ---
+  // Calculates which model had the lowest latency once streaming is done
+  const getWinner = () => {
+    if (loading || Object.keys(metrics).length < 2) return null;
+    // Find the key with the lowest float value
+    return Object.keys(metrics).reduce((a, b) => 
+      parseFloat(metrics[a]) < parseFloat(metrics[b]) ? a : b
+    );
+  };
+
+  const winnerId = getWinner();
+  // --------------------
 
   return (
     <div className={styles.container}>
@@ -78,22 +90,25 @@ export default function Home() {
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
-          latency={metrics["qwen2.5:0.5b"]}  // Pass real metrics
+          latency={metrics["qwen2.5:0.5b"]}
           loading={loading}
+          isWinner={winnerId === "qwen2.5:0.5b"} // Check if winner
         />
 
         <ModelCard
           title="Qwen 3 (0.6B)"
           content={results["qwen3:0.6b"]}
-          latency={metrics["qwen3:0.6b"]}    // Pass real metrics
+          latency={metrics["qwen3:0.6b"]}
           loading={loading}
+          isWinner={winnerId === "qwen3:0.6b"}   // Check if winner
         />
 
         <ModelCard
           title="Qwen 2 (0.5B)"
           content={results["qwen2:0.5b"]}
-          latency={metrics["qwen2:0.5b"]}    // Pass real metrics
+          latency={metrics["qwen2:0.5b"]}
           loading={loading}
+          isWinner={winnerId === "qwen2:0.5b"}   // Check if winner
         />
       </div>
     </div>

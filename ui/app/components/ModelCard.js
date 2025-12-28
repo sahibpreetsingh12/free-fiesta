@@ -6,7 +6,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import styles from "./ModelCard.module.css";
 
-export default function ModelCard({ title, content, loading, latency }) {
+export default function ModelCard({ title, content, loading, latency, isWinner }) {
   const outputRef = useRef(null);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -24,19 +24,25 @@ export default function ModelCard({ title, content, loading, latency }) {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 1500);
     } catch (err) {
-      // Fallback if needed
       alert("Copy failed");
     }
   };
 
-  // Determine if this specific card is active (content is growing or loading)
   const isActive = loading && (!latency || parseFloat(latency) > 0);
 
   return (
-    <div className={`${styles.card} ${isActive ? styles.cardStreaming : ''}`}>
+    <div className={`
+      ${styles.card} 
+      ${isActive ? styles.cardStreaming : ''} 
+      ${isWinner ? styles.cardWinner : ''}
+    `}>
       {/* Header */}
       <div className={styles.header}>
-        <h2 className={styles.title}>{title}</h2>
+        <div className={styles.titleWrapper}>
+          <h2 className={styles.title}>{title}</h2>
+          {isWinner && <span className={styles.trophy}>🏆 Fastest</span>}
+        </div>
+        
         <button className={styles.copyButton} onClick={handleCopy}>
           {isCopied ? "Copied!" : "Copy"}
         </button>

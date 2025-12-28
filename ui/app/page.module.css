@@ -122,20 +122,34 @@
 }
 
 /* GRID LAYOUT FIX */
+/* ui/app/page.module.css */
+
 .cardsGrid {
   display: grid;
-  /* PREVENTS HORIZONTAL BLOWOUT */
-  grid-template-columns: repeat(3, minmax(0, 1fr)); 
-  gap: 24px;
+  /* 1. Prevent Horizontal Blowout */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  
+  /* 2. INCREASE GAP: Was 24px, now 40px to accommodate the 10px pulse shadow */
+  gap: 40px; 
+  
   width: 100%;
   max-width: 1400px;
-  padding: 0 16px;
+  
+  /* 3. ADD PADDING: Prevents the outer shadows from getting cut off */
+  padding: 20px; 
 }
 
+/* Update responsive breakpoints to respect the new gap */
 @media (max-width: 1200px) {
-  .cardsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cardsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px; /* Slightly smaller gap for tablets is okay */
+  }
 }
 
 @media (max-width: 768px) {
-  .cardsGrid { grid-template-columns: minmax(0, 1fr); }
+  .cardsGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
 }
