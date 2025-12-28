@@ -1,32 +1,87 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import ModelCard from "./components/ModelCard";
 import TemperatureSlider from "./components/TemperatureSlider";
 import useModelStreams from "./hooks/useModelStreams";
 import styles from "./page.module.css";
 
+const PRESETS = [
+  { label: "🐍 Python Snake", text: "Write a complete Python script for a Snake game using pygame." },
+  { label: "⚛️ Explain Quantum", text: "Explain quantum entanglement to a 5-year-old using emojis." },
+  { label: "📊 SQL Query", text: "Write a complex SQL query to find the top 3 spending customers per region." },
+  { label: "🐞 Find the Bug", text: "Here is some code: `def add(a,b): return a-b`. Find the bug and fix it." }
+];
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [temperature, setTemperature] = useState(0.3);
-  const { results, loading, startStreaming } = useModelStreams();
+  
+  // Destructure 'metrics' from our updated hook
+  const { results, metrics, loading, startStreaming } = useModelStreams();
 
-  const fakeLatency = {
-    "qwen2.5:0.5b": null,
-    "qwen3:0.6b": null,
-    "qwen2:0.5b": null,
+  const handleClear = () => {
+    setPrompt("");
   };
+
+  // --- WINNER LOGIC ---
+  // Calculates which model had the lowest latency once streaming is done
+  const getWinner = () => {
+    if (loading || Object.keys(metrics).length < 2) return null;
+    // Find the key with the lowest float value
+    return Object.keys(metrics).reduce((a, b) => 
+      parseFloat(metrics[a]) < parseFloat(metrics[b]) ? a : b
+    );
+  };
+
+  const winnerId = getWinner();
+  // --------------------
 
   return (
     <div className={styles.container}>
-      {/* Title */}
+      
+      {/* NEW: Top Navigation to Dashboard */}
+      <div style={{ width: '100%', maxWidth: '1400px', display: 'flex', justifyContent: 'flex-end', marginBottom: '-20px' }}>
+        <Link 
+          href="/dashboard"
+          style={{
+            color: '#a855f7', 
+            textDecoration: 'none', 
+            fontWeight: '600', 
+            border: '1px solid #333',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            backgroundColor: '#111',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          📊 View Telemetry
+        </Link>
+      </div>
+
       <h1 className={styles.title}>Free Fiesta – Streaming Comparison</h1>
 
-      {/* Input Section */}
       <div className={styles.inputSection}>
+        {/* Preset Chips */}
+        <div className={styles.presetContainer}>
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              className={styles.presetChip}
+              onClick={() => setPrompt(preset.text)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
         <textarea
           rows="5"
-          placeholder="Enter your prompt..."
+          placeholder="Enter your prompt or choose a preset..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           className={styles.textarea}
@@ -36,36 +91,49 @@ export default function Home() {
           <TemperatureSlider value={temperature} onChange={setTemperature} />
         </div>
 
-        <button
-          className={`${styles.button} ${loading ? styles.buttonDisabled : ""}`}
-          disabled={loading}
-          onClick={() => startStreaming(prompt, temperature)}
-        >
-          {loading ? "Streaming..." : "Stream Compare Models"}
-        </button>
+        {/* Buttons */}
+        <div className={styles.buttonGroup}>
+          <button 
+            className={styles.clearButton} 
+            onClick={handleClear}
+            disabled={loading}
+          >
+            Clear
+          </button>
+          <button
+            className={`${styles.button} ${loading ? styles.buttonDisabled : ""}`}
+            disabled={loading}
+            onClick={() => startStreaming(prompt, temperature)}
+          >
+            {loading ? "Streaming..." : "Stream Compare Models"}
+          </button>
+        </div>
       </div>
 
-      {/* Cards Grid - 3 Columns */}
+      {/* Cards Grid */}
       <div className={styles.cardsGrid}>
         <ModelCard
           title="Qwen 2.5 (0.5B)"
           content={results["qwen2.5:0.5b"]}
+          latency={metrics["qwen2.5:0.5b"]}
           loading={loading}
-          latency={fakeLatency["qwen2.5:0.5b"]}
+          isWinner={winnerId === "qwen2.5:0.5b"} 
         />
 
         <ModelCard
           title="Qwen 3 (0.6B)"
           content={results["qwen3:0.6b"]}
+          latency={metrics["qwen3:0.6b"]}
           loading={loading}
-          latency={fakeLatency["qwen3:0.6b"]}
+          isWinner={winnerId === "qwen3:0.6b"}   
         />
 
         <ModelCard
           title="Qwen 2 (0.5B)"
           content={results["qwen2:0.5b"]}
+          latency={metrics["qwen2:0.5b"]}
           loading={loading}
-          latency={fakeLatency["qwen2:0.5b"]}
+          isWinner={winnerId === "qwen2:0.5b"}   
         />
       </div>
     </div>
