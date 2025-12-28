@@ -10,7 +10,7 @@ export default function ModelCard({ title, content, loading, latency }) {
   const outputRef = useRef(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  // Auto-scroll to bottom as content streams in
+  // Auto-scroll logic
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
@@ -20,39 +20,20 @@ export default function ModelCard({ title, content, loading, latency }) {
   const handleCopy = async () => {
     if (!content) return;
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(content);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 1500);
-      } else {
-        fallbackCopy(content);
-      }
-    } catch (err) {
-      console.error("Copy failed:", err);
-      fallbackCopy(content);
-    }
-  };
-
-  const fallbackCopy = (text) => {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand("copy");
+      await navigator.clipboard.writeText(content);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 1500);
     } catch (err) {
-      console.error("Fallback copy failed:", err);
-      alert("Could not copy text. Please try again.");
+      // Fallback if needed
+      alert("Copy failed");
     }
-    document.body.removeChild(textarea);
   };
 
+  // Determine if this specific card is active (content is growing or loading)
+  const isActive = loading && (!latency || parseFloat(latency) > 0);
+
   return (
-    <div className={styles.card}>
+    <div className={`${styles.card} ${isActive ? styles.cardStreaming : ''}`}>
       {/* Header */}
       <div className={styles.header}>
         <h2 className={styles.title}>{title}</h2>
@@ -64,7 +45,7 @@ export default function ModelCard({ title, content, loading, latency }) {
       {/* Scrollable Output */}
       <div ref={outputRef} className={styles.output}>
         {loading && (!content || content.length === 0) ? (
-          <div className={styles.loading}>Loading...</div>
+          <div className={styles.loading}>Initializing stream...</div>
         ) : (
           <div className={styles.markdownWrapper}>
             <ReactMarkdown
@@ -89,14 +70,20 @@ export default function ModelCard({ title, content, loading, latency }) {
                 },
               }}
             >
-              {content}
+              {content || ""}
             </ReactMarkdown>
           </div>
         )}
       </div>
 
-      {/* Latency Display */}
-      {latency && <p className={styles.latency}>Latency: {latency}s</p>}
+      {/* Speed Metrics Footer */}
+      <div className={styles.footer}>
+        {latency ? (
+            <span className={styles.metricSuccess}>⏱️ {latency}s total</span>
+        ) : (
+            <span className={styles.metricIdle}>Waiting...</span>
+        )}
+      </div>
     </div>
   );
 }

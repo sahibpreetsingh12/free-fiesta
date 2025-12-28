@@ -5,14 +5,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  font-family: 'Inter', sans-serif;
 }
 
 .title {
   font-size: 32px;
-  font-weight: bold;
+  font-weight: 800;
   color: #fff;
   text-align: center;
   margin-bottom: 32px;
+  background: linear-gradient(to right, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .inputSection {
@@ -22,68 +26,68 @@
   gap: 16px;
   margin-bottom: 48px;
   width: 100%;
-  max-width: 600px;
+  max-width: 700px;
 }
 
-/* --- PRESETS STYLING --- */
+/* PRESETS */
 .presetContainer {
   display: flex;
   gap: 10px;
   width: 100%;
   flex-wrap: wrap;
   justify-content: center;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .presetChip {
-  background-color: #1a1a1a;
+  background-color: #111;
   border: 1px solid #333;
-  color: #aaa;
+  color: #888;
   padding: 8px 16px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
+  border-radius: 20px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
 }
 
 .presetChip:hover {
   background-color: #a855f7;
-  border-color: #a855f7;
   color: white;
+  border-color: #a855f7;
   transform: translateY(-2px);
 }
-/* ----------------------- */
 
 .textarea {
   width: 100%;
   padding: 16px;
-  border-radius: 8px;
-  background-color: #1a1a1a;
+  border-radius: 12px;
+  background-color: #111;
   color: #e5e5e5;
   font-family: monospace;
-  font-size: 14px;
+  font-size: 15px;
   border: 1px solid #333;
   resize: vertical;
-}
-
-.textarea::placeholder {
-  color: #666;
+  transition: border-color 0.2s;
 }
 
 .textarea:focus {
   outline: none;
   border-color: #a855f7;
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.1);
 }
 
-.sliderWrapper {
+.sliderWrapper { width: 100%; margin-top: 8px; }
+
+/* BUTTONS */
+.buttonGroup {
+  display: flex;
+  gap: 16px;
   width: 100%;
+  justify-content: center;
+  margin-top: 16px;
 }
 
 .button {
-  padding: 12px 32px;
+  padding: 14px 36px;
   border-radius: 8px;
   background-color: #a855f7;
   color: #fff;
@@ -91,37 +95,47 @@
   border: none;
   cursor: pointer;
   font-size: 16px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .button:hover:not(:disabled) {
   background-color: #9333ea;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
 }
 
-.buttonDisabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.buttonDisabled { opacity: 0.5; cursor: not-allowed; }
+
+.clearButton {
+  padding: 14px 24px;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #666;
+  border: 1px solid #333;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
+.clearButton:hover:not(:disabled) {
+  border-color: #666;
+  color: #fff;
+}
+
+/* GRID LAYOUT FIX */
 .cardsGrid {
   display: grid;
-  /* CRITICAL FIX: minmax(0, 1fr) prevents columns from exploding */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* PREVENTS HORIZONTAL BLOWOUT */
+  grid-template-columns: repeat(3, minmax(0, 1fr)); 
   gap: 24px;
   width: 100%;
   max-width: 1400px;
   padding: 0 16px;
 }
 
-/* Responsive Rules */
 @media (max-width: 1200px) {
-  .cardsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .cardsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
-  .cardsGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  .cardsGrid { grid-template-columns: minmax(0, 1fr); }
 }

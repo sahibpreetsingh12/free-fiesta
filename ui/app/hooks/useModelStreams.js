@@ -1,66 +1,88 @@
-"use client";
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function useModelStreams() {
-  const [results, setResults] = useState({
-    "qwen2.5:0.5b": "",
-    "qwen3:0.6b": "",
-    "qwen2:0.5b": ""
-  });
-
+  const [results, setResults] = useState({});
+  const [metrics, setMetrics] = useState({}); // Stores latency for each model
   const [loading, setLoading] = useState(false);
+  const abortControllerRef = useRef(null);
 
   const startStreaming = async (prompt, temperature) => {
     setLoading(true);
+    setResults({});
+    setMetrics({});
+    
+    // 1. Mark the start time
+    const startTime = Date.now();
 
-    // Reset results
-    setResults({
-      "qwen2.5:0.5b": "",
-      "qwen3:0.6b": "",
-      "qwen2:0.5b": ""
-    });
+    abortControllerRef.current = new AbortController();
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stream_compare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, temperature }),
+        signal: abortControllerRef.current.signal,
+      });
 
-    const response = await fetch(`${API_URL}/stream_compare`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, temperature })
-    });
+      if (!response.ok) throw new Error("Stream failed");
 
-    // Read the stream
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true }).trim();
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
 
-      // Data can contain multiple JSON lines
-      const lines = chunk.split("\n").filter(Boolean);
+        setResults((prev) => {
+          const next = { ...prev };
+          const currentMetrics = {}; 
 
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
+          lines.forEach((line) => {
+            if (!line.trim()) return;
+            try {
+              // Parse the backend JSON: { model: "qwen2...", token: "..." }
+              const data = JSON.parse(line);
+              
+              if (data.model && data.token) {
+                // Append token to text
+                next[data.model] = (next[data.model] || "") + data.token;
+                
+                // Update Latency: (Current Time - Start Time) / 1000
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+                currentMetrics[data.model] = elapsed;
+              }
+            } catch (e) {
+              console.error("Parse error", e);
+            }
+          });
 
-          const model = data.model;
-          const token = data.token;
-
-          setResults((prev) => ({
-            ...prev,
-            [model]: prev[model] + token
-          }));
-        } catch (e) {
-          console.warn("Bad JSON chunk:", line);
-        }
+          // Update metrics state only if we have new data to avoid lag
+          if (Object.keys(currentMetrics).length > 0) {
+             setMetrics(prevM => ({ ...prevM, ...currentMetrics }));
+          }
+          
+          return next;
+        });
       }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Stream Error:", err);
+        setResults((prev) => ({ ...prev, Error: "Connection failed." }));
+      }
+    } finally {
+      setLoading(false);
     }
+  };
 
+  const stopStreaming = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     setLoading(false);
   };
 
-  return { results, loading, startStreaming };
+  return { results, metrics, loading, startStreaming, stopStreaming };
 }

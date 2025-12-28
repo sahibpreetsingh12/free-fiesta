@@ -5,9 +5,21 @@
   display: flex;
   flex-direction: column;
   padding: 16px;
-  height: 400px;
+  height: 450px; /* Slightly taller for metrics */
   border: 1px solid #333;
-  width: 100%; 
+  width: 100%;
+  transition: border-color 0.3s ease;
+}
+
+/* PULSE ANIMATION */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); border-color: #a855f7; }
+  70% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); border-color: #a855f7; }
+  100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); border-color: #333; }
+}
+
+.cardStreaming {
+  animation: pulse 2s infinite;
 }
 
 .header {
@@ -26,25 +38,20 @@
 }
 
 .copyButton {
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-radius: 6px;
-  background-color: #a855f7;
-  color: #fff;
-  border: none;
+  background-color: #2a2a2a;
+  color: #ccc;
+  border: 1px solid #444;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: background-color 0.2s ease;
+  font-size: 12px;
+  transition: all 0.2s ease;
 }
 
 .copyButton:hover {
-  background-color: #9333ea;
-}
-
-.copyButton:active {
-  background-color: #7e22ce;
+  background-color: #a855f7;
+  color: white;
+  border-color: #a855f7;
 }
 
 .output {
@@ -58,40 +65,21 @@
   font-family: "Inter", sans-serif;
 }
 
-/* Custom Scrollbar */
-.output::-webkit-scrollbar {
-  width: 6px;
-}
-
-.output::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.output::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 3px;
-}
-
-.output::-webkit-scrollbar-thumb:hover {
-  background: #666;
-}
+/* Scrollbar */
+.output::-webkit-scrollbar { width: 6px; }
+.output::-webkit-scrollbar-track { background: transparent; }
+.output::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
 
 .loading {
   color: #9ca3af;
   font-size: 14px;
   font-family: monospace;
+  animation: blink 1.5s infinite;
 }
 
-.latency {
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 8px 0 0 0;
-  border-top: 1px solid #222;
-  padding-top: 8px;
-}
+@keyframes blink { 50% { opacity: 0.5; } }
 
-/* --- MARKDOWN STYLING (The Fix) --- */
-
+/* --- MARKDOWN & CODE FIXES --- */
 .markdownWrapper {
   color: #e5e5e5;
   font-size: 14px;
@@ -100,7 +88,6 @@
   overflow-wrap: break-word;
 }
 
-/* CRITICAL FIX: Force Code Blocks to Wrap */
 .markdownWrapper pre, 
 .markdownWrapper code,
 .markdownWrapper div[style*="background"] { 
@@ -110,66 +97,19 @@
   max-width: 100% !important;
 }
 
-/* Force spans inside code blocks to wrap too */
-.markdownWrapper span {
-  white-space: pre-wrap !important;
+.markdownWrapper p { margin-bottom: 1rem; }
+.markdownWrapper p:last-child { margin-bottom: 0; }
+.markdownWrapper h3 { color: #fff; margin-top: 1rem; font-weight: 700; }
+.inlineCode { background-color: #262626; color: #e879f9; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; }
+
+/* --- FOOTER METRICS --- */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #222;
+  padding-top: 10px;
+  font-size: 12px;
 }
 
-.markdownWrapper p {
-  margin-bottom: 1rem;
-}
-
-.markdownWrapper p:last-child {
-  margin-bottom: 0;
-}
-
-.markdownWrapper h1,
-.markdownWrapper h2,
-.markdownWrapper h3 {
-  color: #fff;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.markdownWrapper ul,
-.markdownWrapper ol {
-  margin-left: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.markdownWrapper li {
-  margin-bottom: 0.25rem;
-}
-
-/* Inline code styling (e.g. `variable`) */
-.inlineCode {
-  background-color: #262626;
-  color: #e879f9;
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  font-family: "Courier New", monospace;
-  font-size: 0.9em;
-  word-break: break-all;
-}
-
-/* Tables */
-.markdownWrapper table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 1rem;
-  display: block; 
-  overflow-x: auto;
-}
-
-.markdownWrapper th,
-.markdownWrapper td {
-  border: 1px solid #333;
-  padding: 8px;
-  text-align: left;
-}
-
-.markdownWrapper th {
-  background-color: #1f1f1f;
-  color: #fff;
-}
+.metricSuccess { color: #4ade80; font-weight: 600; }
+.metricIdle { color: #444; }
