@@ -54,8 +54,10 @@
   border-radius: 8px;
   margin-bottom: 12px;
   border: 1px solid #222;
+  font-family: "Inter", sans-serif; /* Cleaner font for regular text */
 }
 
+/* Custom Scrollbar */
 .output::-webkit-scrollbar {
   width: 6px;
 }
@@ -76,17 +78,7 @@
 .loading {
   color: #9ca3af;
   font-size: 14px;
-}
-
-.content {
-  margin: 0;
-  padding: 0;
-  color: #e5e5e5;
-  font-size: 13px;
-  font-family: "Courier New", monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
+  font-family: monospace;
 }
 
 .latency {
@@ -95,4 +87,77 @@
   margin: 8px 0 0 0;
   border-top: 1px solid #222;
   padding-top: 8px;
+}
+
+/* --- New Markdown Specific Styles --- */
+
+.markdownWrapper {
+  color: #e5e5e5;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.markdownWrapper p {
+  margin-bottom: 1rem;
+}
+
+.markdownWrapper p:last-child {
+  margin-bottom: 0;
+}
+
+.markdownWrapper h1,
+.markdownWrapper h2,
+.markdownWrapper h3 {
+  color: #fff;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.markdownWrapper ul,
+.markdownWrapper ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.markdownWrapper li {
+  margin-bottom: 0.25rem;
+}
+
+.markdownWrapper blockquote {
+  border-left: 4px solid #a855f7;
+  padding-left: 1rem;
+  color: #a3a3a3;
+  margin: 1rem 0;
+  font-style: italic;
+}
+
+/* Inline code style (e.g. `const x = 1`) */
+.inlineCode {
+  background-color: #262626;
+  color: #e879f9; /* Pink/Purple to match theme */
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+/* Tables */
+.markdownWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.markdownWrapper th,
+.markdownWrapper td {
+  border: 1px solid #333;
+  padding: 8px;
+  text-align: left;
+}
+
+.markdownWrapper th {
+  background-color: #1f1f1f;
+  color: #fff;
 }
