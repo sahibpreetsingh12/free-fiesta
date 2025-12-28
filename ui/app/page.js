@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import ModelCard from "./components/ModelCard";
 import TemperatureSlider from "./components/TemperatureSlider";
 import useModelStreams from "./hooks/useModelStreams";
@@ -17,6 +18,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [temperature, setTemperature] = useState(0.3);
   
+  // Destructure 'metrics' from our updated hook
   const { results, metrics, loading, startStreaming } = useModelStreams();
 
   const handleClear = () => {
@@ -38,6 +40,29 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
+      
+      {/* NEW: Top Navigation to Dashboard */}
+      <div style={{ width: '100%', maxWidth: '1400px', display: 'flex', justifyContent: 'flex-end', marginBottom: '-20px' }}>
+        <Link 
+          href="/dashboard"
+          style={{
+            color: '#a855f7', 
+            textDecoration: 'none', 
+            fontWeight: '600', 
+            border: '1px solid #333',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            backgroundColor: '#111',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          📊 View Telemetry
+        </Link>
+      </div>
+
       <h1 className={styles.title}>Free Fiesta – Streaming Comparison</h1>
 
       <div className={styles.inputSection}>
@@ -92,7 +117,7 @@ export default function Home() {
           content={results["qwen2.5:0.5b"]}
           latency={metrics["qwen2.5:0.5b"]}
           loading={loading}
-          isWinner={winnerId === "qwen2.5:0.5b"} // Check if winner
+          isWinner={winnerId === "qwen2.5:0.5b"} 
         />
 
         <ModelCard
@@ -100,7 +125,7 @@ export default function Home() {
           content={results["qwen3:0.6b"]}
           latency={metrics["qwen3:0.6b"]}
           loading={loading}
-          isWinner={winnerId === "qwen3:0.6b"}   // Check if winner
+          isWinner={winnerId === "qwen3:0.6b"}   
         />
 
         <ModelCard
@@ -108,7 +133,7 @@ export default function Home() {
           content={results["qwen2:0.5b"]}
           latency={metrics["qwen2:0.5b"]}
           loading={loading}
-          isWinner={winnerId === "qwen2:0.5b"}   // Check if winner
+          isWinner={winnerId === "qwen2:0.5b"}   
         />
       </div>
     </div>
