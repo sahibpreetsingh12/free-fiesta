@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 import requests
 import os
 import json
+import asyncio  # <--- NEW IMPORT REQUIRED
 from typing import Dict
 
 # Config
@@ -54,7 +55,6 @@ class GPUModel:
                         data = json.loads(json_str)
                         content = data["choices"][0]["delta"].get("content", "")
                         if content:
-                            # Send exact ID expected by UI Box 1
                             yield json.dumps({"model": "qwen2.5:0.5b", "token": content}) + "\n"
                     except:
                         continue
@@ -65,12 +65,6 @@ class GPUModel:
 @serve.deployment(name="cpu_model")
 class CPUModel:
     def get_stream(self, model_name: str, prompt: str, target_ui_name: str = None):
-        """
-        model_name: The actual model to run in Ollama (must exist there)
-        target_ui_name: The name we send back to the UI (so it goes in the right box)
-        """
-        
-        # If no target name is provided, use the actual model name
         if not target_ui_name:
             target_ui_name = model_name
 
@@ -123,11 +117,12 @@ class Orchestrator:
         # --- STREAM 1: GPU Box (with silent CPU fallback) ---
         async def smart_gpu_stream():
             try:
+                # We assume self.gpu.get_stream returns a Ray ObjectRefGenerator
                 gpu_gen = self.gpu.options(stream=True).get_stream.remote(prompt)
                 async for item in gpu_gen:
                     yield item
             except Exception as e:
-                # SILENT FALLBACK: Run CPU model, but label it "qwen2.5:0.5b" so it fills Box 1
+                # SILENT FALLBACK
                 fallback_gen = self.cpu.options(stream=True).get_stream.remote(
                     model_name="qwen2.5:0.5b", 
                     prompt=prompt,
@@ -136,33 +131,54 @@ class Orchestrator:
                 async for item in fallback_gen:
                     yield item
 
-        # --- STREAM 2: Middle Box (Qwen 3) ---
-        # Note: I am running "qwen2.5:0.5b" behind the scenes to ensure it works,
-        # but I am sending the ID "qwen3:0.6b" (or whatever your UI expects for Box 2).
-        # IF YOU HAVE ACTUAL QWEN 3 INSTALLED, change model_name="qwen3:0.6b"
+        # --- STREAM 2: Middle Box ---
         cpu_gen_middle = self.cpu.options(stream=True).get_stream.remote(
             model_name="qwen2.5:0.5b", 
             prompt=prompt, 
-            target_ui_name="qwen3:0.6b" # <--- This key directs it to the Middle Box
+            target_ui_name="qwen3:0.6b"
         )
 
-        # --- STREAM 3: Right Box (Qwen 2) ---
+        # --- STREAM 3: Right Box ---
         cpu_gen_right = self.cpu.options(stream=True).get_stream.remote(
             model_name="qwen2:0.5b", 
             prompt=prompt,
             target_ui_name="qwen2:0.5b"
         )
 
-        # --- MERGE ALL 3 ---
+        # --- MERGE STREAMS (THE FIX) ---
         async def merge_streams():
-            # 1. Yield GPU/Fallback stream
-            async for item in smart_gpu_stream(): yield item
-            
-            # 2. Yield Middle Box stream
-            async for item in cpu_gen_middle: yield item
-            
-            # 3. Yield Right Box stream
-            async for item in cpu_gen_right: yield item
+            queue = asyncio.Queue()
+
+            # Helper to push stream items into the shared queue
+            async def producer(iterator):
+                try:
+                    async for item in iterator:
+                        await queue.put(item)
+                except Exception as e:
+                    await queue.put(json.dumps({"error": str(e)}) + "\n")
+                finally:
+                    # Signal that this specific producer is done
+                    await queue.put(None)
+
+            # Start all 3 producers concurrently as background tasks
+            tasks = [
+                asyncio.create_task(producer(smart_gpu_stream())),
+                asyncio.create_task(producer(cpu_gen_middle)),
+                asyncio.create_task(producer(cpu_gen_right))
+            ]
+
+            # Consumer loop: Keep yielding until all 3 producers send their "None" sentinel
+            finished_producers = 0
+            total_producers = 3
+
+            while finished_producers < total_producers:
+                # Wait for the next token from ANY model
+                item = await queue.get()
+                
+                if item is None:
+                    finished_producers += 1
+                else:
+                    yield item
 
         return StreamingResponse(merge_streams(), media_type="text/event-stream")
 
