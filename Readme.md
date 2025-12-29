@@ -96,6 +96,14 @@ docker-compose up --build
 
 This will build the images for each service, download the necessary LLMs, and start everything up. You can then access the UI in your browser at `http://localhost:3000`.
 
+### 1.1 Clean Build and Run (Development)
+
+For a complete refresh, especially during development or after significant changes, you might want to stop, clean, rebuild (without cache), and restart all services. This ensures you're working with the freshest images.
+
+```bash
+docker compose down && docker system prune -a && docker compose build --no-cache  --progress=plain && docker compose up -d
+```
+
 ### 2. Replicating on Your Own VM
 
 If you are deploying this project to a Virtual Machine or another server, you will need to update the hardcoded URLs to use your machine's public IP address instead of `localhost`.
@@ -107,6 +115,20 @@ If you are deploying this project to a Virtual Machine or another server, you wi
 2.  **Backend (API Gateway):**
     *   **File:** `backend/app.py`
     *   **Change:** Update the `WORKER_URL` environment variable to point to the correct address of your worker service. In the default `docker-compose.yml` setup, this is handled by Docker's internal networking (`http://worker:8080`), so you would only need to change this if you were running the services outside of the composed environment.
+
+### 2.1 Viewing Logs
+
+To inspect the output and troubleshoot any issues with your running services, you can check the Docker Compose logs:
+
+```bash
+docker compose logs -f
+```
+
+To view logs for a specific service (e.g., `api`):
+
+```bash
+docker compose logs -f api
+```
 
 ### 3. Testing & Reporting (Optional)
 
