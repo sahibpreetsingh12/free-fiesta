@@ -101,6 +101,9 @@ class CPUModel:
 # ---------------------------------------------------------
 # DEPLOYMENT 3: The Orchestrator
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# DEPLOYMENT 3: The Orchestrator (FIXED)
+# ---------------------------------------------------------
 @serve.deployment(name="orchestrator")
 @serve.ingress(app)
 class Orchestrator:
@@ -115,14 +118,17 @@ class Orchestrator:
         # --- STREAM 1: GPU Box (with silent CPU fallback) ---
         async def smart_gpu_stream():
             try:
-                # Call the async GPU worker
-                gpu_gen = await self.gpu.options(stream=True).get_stream.remote(prompt)
+                # FIX 1: Removed 'await'. Get the generator directly.
+                gpu_gen = self.gpu.options(stream=True).get_stream.remote(prompt)
+                
+                # The exception (if GPU is down) will be raised here during iteration
                 async for item in gpu_gen:
                     yield item
             except Exception as e:
-                # SILENT FALLBACK: If GPU fails (timeout/connection), use CPU
+                # SILENT FALLBACK
                 print(f"GPU failed ({e}), switching to CPU fallback.")
-                fallback_gen = await self.cpu.options(stream=True).get_stream.remote(
+                # FIX 2: Removed 'await' here too.
+                fallback_gen = self.cpu.options(stream=True).get_stream.remote(
                     model_name="qwen2.5:0.5b", 
                     prompt=prompt,
                     target_ui_name="qwen2.5:0.5b"
@@ -131,56 +137,43 @@ class Orchestrator:
                     yield item
 
         # --- MERGE STREAMS ---
-        # We use a Queue to merge the 3 parallel async streams into one response
         async def merge_streams():
             queue = asyncio.Queue()
 
-            # Helper: Pushes items from a generator into the shared queue
-            async def producer(generator_coroutine):
+            async def producer(generator_coroutine_or_iterator):
                 try:
-                    # Note: We must await the .remote() call to get the generator
-                    # But since we call it inside smart_gpu_stream, we handle it there.
-                    # For the direct CPU calls, we do it here:
-                    iterator = await generator_coroutine
+                    # Handle both raw iterators (from .remote) and async functions (smart_gpu_stream)
+                    if hasattr(generator_coroutine_or_iterator, "__aiter__"):
+                        iterator = generator_coroutine_or_iterator
+                    else:
+                        iterator = await generator_coroutine_or_iterator
+
                     async for item in iterator:
                         await queue.put(item)
                 except Exception as e:
                     await queue.put(json.dumps({"error": str(e)}) + "\n")
                 finally:
-                    await queue.put(None) # Signal "Done"
-
-            # 1. Start the GPU Stream (which has internal fallback logic)
-            # Since smart_gpu_stream is already an async generator, we wrap it simply:
-            async def gpu_producer():
-                try:
-                    async for item in smart_gpu_stream():
-                        await queue.put(item)
-                finally:
                     await queue.put(None)
 
-            # 2. Start CPU Middle
-            async def middle_producer():
-                gen = await self.cpu.options(stream=True).get_stream.remote(
-                    model_name="qwen2.5:0.5b", prompt=prompt, target_ui_name="qwen3:0.6b"
-                )
-                async for item in gen:
-                    await queue.put(item)
-                await queue.put(None)
+            # 1. Start GPU Producer
+            # smart_gpu_stream is an async generator function, so we call it directly
+            task1 = asyncio.create_task(producer(smart_gpu_stream()))
 
-            # 3. Start CPU Right
-            async def right_producer():
-                gen = await self.cpu.options(stream=True).get_stream.remote(
-                    model_name="qwen2:0.5b", prompt=prompt, target_ui_name="qwen2:0.5b"
-                )
-                async for item in gen:
-                    await queue.put(item)
-                await queue.put(None)
+            # 2. Start Middle Producer
+            # FIX 3: Removed 'await'
+            middle_gen = self.cpu.options(stream=True).get_stream.remote(
+                model_name="qwen2.5:0.5b", prompt=prompt, target_ui_name="qwen3:0.6b"
+            )
+            task2 = asyncio.create_task(producer(middle_gen))
 
-            # Fire them all at once!
-            asyncio.create_task(gpu_producer())
-            asyncio.create_task(middle_producer())
-            asyncio.create_task(right_producer())
+            # 3. Start Right Producer
+            # FIX 4: Removed 'await'
+            right_gen = self.cpu.options(stream=True).get_stream.remote(
+                model_name="qwen2:0.5b", prompt=prompt, target_ui_name="qwen2:0.5b"
+            )
+            task3 = asyncio.create_task(producer(right_gen))
 
+            # Consumer Loop
             finished_count = 0
             while finished_count < 3:
                 item = await queue.get()
@@ -190,7 +183,6 @@ class Orchestrator:
                     yield item
 
         return StreamingResponse(merge_streams(), media_type="text/event-stream")
-
 # ---------------------------------------------------------
 # WIRING
 # ---------------------------------------------------------
