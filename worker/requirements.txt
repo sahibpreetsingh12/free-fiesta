@@ -4,3 +4,4 @@ ray[default,serve]
 requests==2.31.0
 slowapi==0.1.9           # For Rate Limiting
 watchfiles
+httpx

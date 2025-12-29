@@ -2,20 +2,21 @@ import ray
 from ray import serve
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-import requests
+import httpx  # <--- SWAP requests FOR httpx
 import os
 import json
-import asyncio  # <--- NEW IMPORT REQUIRED
+import asyncio
 from typing import Dict
 
 # Config
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001")
+# Ensure this matches your actual GPU server IP
+VLLM_URL = os.getenv("VLLM_URL", "http://34.0.43.79:8001") 
 
 app = FastAPI()
 
 # ---------------------------------------------------------
-# DEPLOYMENT 1: The GPU Worker (vLLM)
+# DEPLOYMENT 1: The GPU Worker (vLLM) -> Now Async!
 # ---------------------------------------------------------
 @serve.deployment(
     name="gpu_model",
@@ -23,7 +24,8 @@ app = FastAPI()
     ray_actor_options={"num_cpus": 1} 
 )
 class GPUModel:
-    def get_stream(self, prompt: str):
+    # 1. Changed to 'async def' so it doesn't block the event loop
+    async def get_stream(self, prompt: str):
         payload = {
             "model": "Qwen/Qwen2.5-0.5B",
             "messages": [
@@ -35,36 +37,34 @@ class GPUModel:
             "temperature": 0.1
         }
         
-        # Try connecting to GPU. If it fails, we let the Orchestrator handle the crash.
-        with requests.post(
-            f"{VLLM_URL}/v1/chat/completions",
-            json=payload,
-            stream=True,
-            timeout=5 # Fail fast (5s) if GPU is off
-        ) as r:
-            r.raise_for_status()
-            
-            for line in r.iter_lines():
-                if not line: continue
-                decoded = line.decode("utf-8")
-                
-                if "[DONE]" in decoded: break
-                if decoded.startswith("data: "):
-                    json_str = decoded[6:]
-                    try:
-                        data = json.loads(json_str)
-                        content = data["choices"][0]["delta"].get("content", "")
-                        if content:
-                            yield json.dumps({"model": "qwen2.5:0.5b", "token": content}) + "\n"
-                    except:
-                        continue
+        # 2. Use AsyncClient to prevent blocking
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                async with client.stream("POST", f"{VLLM_URL}/v1/chat/completions", json=payload) as response:
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        if not line: continue
+                        if "[DONE]" in line: break
+                        if line.startswith("data: "):
+                            json_str = line[6:]
+                            try:
+                                data = json.loads(json_str)
+                                content = data["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield json.dumps({"model": "qwen2.5:0.5b", "token": content}) + "\n"
+                            except:
+                                continue
+        except Exception as e:
+            # We raise the error so the Orchestrator knows to trigger the fallback
+            raise e
 
 # ---------------------------------------------------------
-# DEPLOYMENT 2: The CPU Worker (Ollama)
+# DEPLOYMENT 2: The CPU Worker (Ollama) -> Now Async!
 # ---------------------------------------------------------
 @serve.deployment(name="cpu_model")
 class CPUModel:
-    def get_stream(self, model_name: str, prompt: str, target_ui_name: str = None):
+    async def get_stream(self, model_name: str, prompt: str, target_ui_name: str = None):
         if not target_ui_name:
             target_ui_name = model_name
 
@@ -76,26 +76,24 @@ class CPUModel:
         }
         
         try:
-            with requests.post(
-                f"{OLLAMA_URL}/api/chat",
-                json=payload,
-                stream=True,
-                timeout=300
-            ) as r:
-                if r.status_code != 200:
-                    yield json.dumps({"model": target_ui_name, "token": f" [Error: Ollama {r.status_code}]"}) + "\n"
-                    return
+            # Increased timeout for CPU models as they are slower
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                async with client.stream("POST", f"{OLLAMA_URL}/api/chat", json=payload) as response:
+                    
+                    if response.status_code != 200:
+                        yield json.dumps({"model": target_ui_name, "token": f" [Error: Ollama {response.status_code}]"}) + "\n"
+                        return
 
-                for line in r.iter_lines():
-                    if not line: continue
-                    try:
-                        data = json.loads(line.decode())
-                        if data.get("done"): break
-                        content = data.get("message", {}).get("content", "")
-                        if content:
-                            yield json.dumps({"model": target_ui_name, "token": content}) + "\n"
-                    except:
-                        continue
+                    async for line in response.aiter_lines():
+                        if not line: continue
+                        try:
+                            data = json.loads(line)
+                            if data.get("done"): break
+                            content = data.get("message", {}).get("content", "")
+                            if content:
+                                yield json.dumps({"model": target_ui_name, "token": content}) + "\n"
+                        except:
+                            continue
                         
         except Exception as e:
             yield json.dumps({"model": target_ui_name, "token": f" [Error: {str(e)}]"}) + "\n"
@@ -117,13 +115,14 @@ class Orchestrator:
         # --- STREAM 1: GPU Box (with silent CPU fallback) ---
         async def smart_gpu_stream():
             try:
-                # We assume self.gpu.get_stream returns a Ray ObjectRefGenerator
-                gpu_gen = self.gpu.options(stream=True).get_stream.remote(prompt)
+                # Call the async GPU worker
+                gpu_gen = await self.gpu.options(stream=True).get_stream.remote(prompt)
                 async for item in gpu_gen:
                     yield item
             except Exception as e:
-                # SILENT FALLBACK
-                fallback_gen = self.cpu.options(stream=True).get_stream.remote(
+                # SILENT FALLBACK: If GPU fails (timeout/connection), use CPU
+                print(f"GPU failed ({e}), switching to CPU fallback.")
+                fallback_gen = await self.cpu.options(stream=True).get_stream.remote(
                     model_name="qwen2.5:0.5b", 
                     prompt=prompt,
                     target_ui_name="qwen2.5:0.5b"
@@ -131,52 +130,62 @@ class Orchestrator:
                 async for item in fallback_gen:
                     yield item
 
-        # --- STREAM 2: Middle Box ---
-        cpu_gen_middle = self.cpu.options(stream=True).get_stream.remote(
-            model_name="qwen2.5:0.5b", 
-            prompt=prompt, 
-            target_ui_name="qwen3:0.6b"
-        )
-
-        # --- STREAM 3: Right Box ---
-        cpu_gen_right = self.cpu.options(stream=True).get_stream.remote(
-            model_name="qwen2:0.5b", 
-            prompt=prompt,
-            target_ui_name="qwen2:0.5b"
-        )
-
-        # --- MERGE STREAMS (THE FIX) ---
+        # --- MERGE STREAMS ---
+        # We use a Queue to merge the 3 parallel async streams into one response
         async def merge_streams():
             queue = asyncio.Queue()
 
-            # Helper to push stream items into the shared queue
-            async def producer(iterator):
+            # Helper: Pushes items from a generator into the shared queue
+            async def producer(generator_coroutine):
                 try:
+                    # Note: We must await the .remote() call to get the generator
+                    # But since we call it inside smart_gpu_stream, we handle it there.
+                    # For the direct CPU calls, we do it here:
+                    iterator = await generator_coroutine
                     async for item in iterator:
                         await queue.put(item)
                 except Exception as e:
                     await queue.put(json.dumps({"error": str(e)}) + "\n")
                 finally:
-                    # Signal that this specific producer is done
+                    await queue.put(None) # Signal "Done"
+
+            # 1. Start the GPU Stream (which has internal fallback logic)
+            # Since smart_gpu_stream is already an async generator, we wrap it simply:
+            async def gpu_producer():
+                try:
+                    async for item in smart_gpu_stream():
+                        await queue.put(item)
+                finally:
                     await queue.put(None)
 
-            # Start all 3 producers concurrently as background tasks
-            tasks = [
-                asyncio.create_task(producer(smart_gpu_stream())),
-                asyncio.create_task(producer(cpu_gen_middle)),
-                asyncio.create_task(producer(cpu_gen_right))
-            ]
+            # 2. Start CPU Middle
+            async def middle_producer():
+                gen = await self.cpu.options(stream=True).get_stream.remote(
+                    model_name="qwen2.5:0.5b", prompt=prompt, target_ui_name="qwen3:0.6b"
+                )
+                async for item in gen:
+                    await queue.put(item)
+                await queue.put(None)
 
-            # Consumer loop: Keep yielding until all 3 producers send their "None" sentinel
-            finished_producers = 0
-            total_producers = 3
+            # 3. Start CPU Right
+            async def right_producer():
+                gen = await self.cpu.options(stream=True).get_stream.remote(
+                    model_name="qwen2:0.5b", prompt=prompt, target_ui_name="qwen2:0.5b"
+                )
+                async for item in gen:
+                    await queue.put(item)
+                await queue.put(None)
 
-            while finished_producers < total_producers:
-                # Wait for the next token from ANY model
+            # Fire them all at once!
+            asyncio.create_task(gpu_producer())
+            asyncio.create_task(middle_producer())
+            asyncio.create_task(right_producer())
+
+            finished_count = 0
+            while finished_count < 3:
                 item = await queue.get()
-                
                 if item is None:
-                    finished_producers += 1
+                    finished_count += 1
                 else:
                     yield item
 
