@@ -38,7 +38,7 @@ def compare(data: dict):
 
 
 @app.post("/stream_compare")
-@limiter.limit("5/minute") # Prevents users from draining GPU days
+@limiter.limit("10/minute") # Prevents users from draining GPU days
 async def stream_compare(request: Request, payload: dict): # 'request' arg is mandatory for SlowAPI
     def generate():
         with requests.post(f"{WORKER_URL}/stream_compare", json=payload, stream=True) as r:
