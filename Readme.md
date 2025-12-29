@@ -12,7 +12,7 @@ This project was born from a desire to learn and experiment with cutting-edge te
 
 *A brief video walkthrough of Free-Fiesta in action.*
 
-**(video_placeholder.mp4)**
+[![Watch the video](https://img.youtube.com/vi/zd-NND16BpI/maxresdefault.jpg)](https://youtu.be/zd-NND16BpI)
 
 ---
 
